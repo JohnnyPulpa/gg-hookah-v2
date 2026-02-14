@@ -1,21 +1,16 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useLanguage } from '../hooks/useLanguage';
+import { useLanguageContext } from '../contexts/LanguageContext';
 import { t } from '../utils/translations';
 import { DepositType } from '../types';
-import Card from '../components/Card';
-import Button from '../components/Button';
-import Input from '../components/Input';
-import Checkbox from '../components/Checkbox';
-import Badge from '../components/Badge';
 
 export default function Checkout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { language } = useLanguage();
-  
+  const { language } = useLanguageContext();
+
   const selectedMix = location.state?.selectedMix;
-  
+
   // Form state
   const [address, setAddress] = useState('');
   const [entrance, setEntrance] = useState('');
@@ -27,34 +22,18 @@ export default function Checkout() {
   const [depositType, setDepositType] = useState<DepositType>('cash');
   const [promoCode, setPromoCode] = useState('');
   const [rulesAccepted, setRulesAccepted] = useState(false);
-  
-  // Mock: passport already on file
+
+  // TODO: check from API by phone
   const hasPassportOnFile = false;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!rulesAccepted) {
       alert(language === 'ru' ? 'Подтвердите согласие с правилами' : 'Please accept the rules');
       return;
     }
-    
-    // TODO: Send to backend API
-    console.log('Order:', {
-      mix: selectedMix,
-      address,
-      entrance,
-      floor,
-      apartment,
-      doorCode,
-      phone,
-      comment,
-      depositType,
-      promoCode,
-      rulesAccepted
-    });
-    
-    // Navigate to success or orders
+    // TODO: POST /api/orders
+    console.log('Order:', { mix: selectedMix, address, entrance, floor, apartment, doorCode, phone, comment, depositType, promoCode });
     alert(language === 'ru' ? 'Заказ создан!' : 'Order created!');
     navigate('/orders');
   };
@@ -66,205 +45,125 @@ export default function Checkout() {
         <h2 className="text-2xl font-bold mb-2">
           {language === 'ru' ? 'Микс не выбран' : 'No mix selected'}
         </h2>
-        <p className="text-light-text-secondary dark:text-dark-text-secondary mb-6">
-          {language === 'ru' 
-            ? 'Пожалуйста, выберите микс из каталога'
-            : 'Please choose a mix from the catalog'}
+        <p className="text-gray-500 mb-6">
+          {language === 'ru' ? 'Пожалуйста, выберите микс из каталога' : 'Please choose a mix from the catalog'}
         </p>
-        <Button onClick={() => navigate('/catalog')}>
+        <button onClick={() => navigate('/catalog')} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors">
           {language === 'ru' ? 'Перейти в каталог' : 'Go to catalog'}
-        </Button>
+        </button>
       </div>
     );
   }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-brand-orange mb-2">
-          {t('checkout_title', language)}
-        </h1>
-      </div>
+      <h1 className="text-3xl font-bold text-orange-500 mb-2">
+        {t('checkout_title', language)}
+      </h1>
 
       {/* Selected Mix Summary */}
-      <Card>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="font-bold text-lg">{selectedMix.name}</h3>
-            <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">
-              {selectedMix.flavors}
-            </p>
+            <p className="text-sm text-gray-500">{selectedMix.flavors}</p>
           </div>
-          <div className="text-2xl font-bold text-brand-orange">
-            {selectedMix.price}₾
-          </div>
+          <div className="text-2xl font-bold text-orange-500">{selectedMix.price}₾</div>
         </div>
-      </Card>
+      </div>
 
-      {/* Checkout Form */}
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Address */}
-        <Card>
-          <h2 className="text-xl font-semibold mb-4">
-            {t('checkout_address', language)}
-          </h2>
-          <div className="space-y-3">
-            <Input
-              label={language === 'ru' ? 'Адрес *' : 'Address *'}
-              placeholder={language === 'ru' ? 'Улица, дом' : 'Street, building'}
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              required
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label={language === 'ru' ? 'Подъезд' : 'Entrance'}
-                placeholder="1"
-                value={entrance}
-                onChange={(e) => setEntrance(e.target.value)}
-              />
-              <Input
-                label={language === 'ru' ? 'Этаж' : 'Floor'}
-                placeholder="5"
-                value={floor}
-                onChange={(e) => setFloor(e.target.value)}
-              />
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 space-y-3">
+          <h2 className="text-xl font-semibold">{t('checkout_address', language)}</h2>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{language === 'ru' ? 'Адрес *' : 'Address *'}</label>
+            <input type="text" required value={address} onChange={e => setAddress(e.target.value)} placeholder={language === 'ru' ? 'Улица, дом' : 'Street, building'} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{language === 'ru' ? 'Подъезд' : 'Entrance'}</label>
+              <input type="text" value={entrance} onChange={e => setEntrance(e.target.value)} placeholder="1" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label={language === 'ru' ? 'Квартира' : 'Apartment'}
-                placeholder="42"
-                value={apartment}
-                onChange={(e) => setApartment(e.target.value)}
-              />
-              <Input
-                label={language === 'ru' ? 'Код домофона' : 'Door code'}
-                placeholder="1234"
-                value={doorCode}
-                onChange={(e) => setDoorCode(e.target.value)}
-              />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{language === 'ru' ? 'Этаж' : 'Floor'}</label>
+              <input type="text" value={floor} onChange={e => setFloor(e.target.value)} placeholder="5" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500" />
             </div>
           </div>
-        </Card>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{language === 'ru' ? 'Квартира' : 'Apartment'}</label>
+              <input type="text" value={apartment} onChange={e => setApartment(e.target.value)} placeholder="42" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{language === 'ru' ? 'Код домофона' : 'Door code'}</label>
+              <input type="text" value={doorCode} onChange={e => setDoorCode(e.target.value)} placeholder="1234" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            </div>
+          </div>
+        </div>
 
         {/* Contact */}
-        <Card>
-          <h2 className="text-xl font-semibold mb-4">
-            {language === 'ru' ? 'Контакты' : 'Contact'}
-          </h2>
-          <div className="space-y-3">
-            <Input
-              label={`${t('checkout_phone', language)} *`}
-              type="tel"
-              placeholder="+995 555 123 456"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              required
-            />
-            <Input
-              label={t('checkout_comment', language)}
-              placeholder={language === 'ru' ? 'Дополнительная информация' : 'Additional info'}
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-            />
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 space-y-3">
+          <h2 className="text-xl font-semibold">{language === 'ru' ? 'Контакты' : 'Contact'}</h2>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('checkout_phone', language)} *</label>
+            <input type="tel" required value={phone} onChange={e => setPhone(e.target.value)} placeholder="+995 555 123 456" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500" />
           </div>
-        </Card>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('checkout_comment', language)}</label>
+            <input type="text" value={comment} onChange={e => setComment(e.target.value)} placeholder={language === 'ru' ? 'Дополнительная информация' : 'Additional info'} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          </div>
+        </div>
 
         {/* Deposit */}
-        <Card>
-          <h2 className="text-xl font-semibold mb-4">
-            {t('checkout_deposit', language)}
-          </h2>
-          
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <h2 className="text-xl font-semibold mb-4">{t('checkout_deposit', language)}</h2>
           {hasPassportOnFile ? (
-            <div className="flex items-center gap-2 text-brand-green">
-              <Badge variant="success">✓ {language === 'ru' ? 'Паспорт в базе' : 'Passport on file'}</Badge>
-              <span className="text-sm">
-                {language === 'ru' ? 'Залог не требуется' : 'No deposit required'}
-              </span>
+            <div className="flex items-center gap-2 text-green-600">
+              <span className="bg-green-100 text-green-700 text-xs font-semibold px-2 py-1 rounded">✓ {language === 'ru' ? 'Паспорт в базе' : 'Passport on file'}</span>
+              <span className="text-sm">{language === 'ru' ? 'Залог не требуется' : 'No deposit required'}</span>
             </div>
           ) : (
             <div className="space-y-3">
-              <label className="flex items-center gap-3 p-3 border border-light-border rounded-lg cursor-pointer hover:bg-light-surface dark:hover:bg-dark-surface transition-colors">
-                <input
-                  type="radio"
-                  name="deposit"
-                  value="cash"
-                  checked={depositType === 'cash'}
-                  onChange={() => setDepositType('cash')}
-                  className="w-5 h-5 text-brand-orange focus:ring-brand-orange"
-                />
+              <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <input type="radio" name="deposit" checked={depositType === 'cash'} onChange={() => setDepositType('cash')} className="w-5 h-5 text-orange-500" />
                 <div className="flex-1">
                   <div className="font-medium">{t('checkout_deposit_cash', language)}</div>
-                  <div className="text-sm text-light-text-secondary dark:text-dark-text-secondary">
-                    {language === 'ru' ? 'Наличными курьеру' : 'Cash to courier'}
-                  </div>
+                  <div className="text-sm text-gray-500">{language === 'ru' ? 'Наличными курьеру' : 'Cash to courier'}</div>
                 </div>
                 <span className="text-2xl">💵</span>
               </label>
-
-              <label className="flex items-center gap-3 p-3 border border-light-border rounded-lg cursor-pointer hover:bg-light-surface dark:hover:bg-dark-surface transition-colors">
-                <input
-                  type="radio"
-                  name="deposit"
-                  value="passport"
-                  checked={depositType === 'passport'}
-                  onChange={() => setDepositType('passport')}
-                  className="w-5 h-5 text-brand-orange focus:ring-brand-orange"
-                />
+              <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <input type="radio" name="deposit" checked={depositType === 'passport'} onChange={() => setDepositType('passport')} className="w-5 h-5 text-orange-500" />
                 <div className="flex-1">
                   <div className="font-medium">{t('checkout_deposit_passport', language)}</div>
-                  <div className="text-sm text-light-text-secondary dark:text-dark-text-secondary">
-                    {language === 'ru' ? 'Фото сделает курьер' : 'Courier will take photo'}
-                  </div>
+                  <div className="text-sm text-gray-500">{language === 'ru' ? 'Фото сделает курьер' : 'Courier will take photo'}</div>
                 </div>
                 <span className="text-2xl">🪪</span>
               </label>
             </div>
           )}
-        </Card>
+        </div>
 
         {/* Promo Code */}
-        <Card>
-          <Input
-            label={t('checkout_promo_code', language)}
-            placeholder={language === 'ru' ? 'Введите промокод' : 'Enter promo code'}
-            value={promoCode}
-            onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-          />
-          <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-2">
-            {language === 'ru' 
-              ? 'Скидка применяется только к кальяну' 
-              : 'Discount applies to hookah only'}
-          </p>
-        </Card>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('checkout_promo_code', language)}</label>
+          <input type="text" value={promoCode} onChange={e => setPromoCode(e.target.value.toUpperCase())} placeholder={language === 'ru' ? 'Введите промокод' : 'Enter promo code'} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          <p className="text-xs text-gray-500 mt-2">{language === 'ru' ? 'Скидка применяется только к кальяну' : 'Discount applies to hookah only'}</p>
+        </div>
 
-        {/* Rules Agreement */}
-        <Card>
-          <Checkbox
-            label={
-              <span>
-                {t('checkout_rules', language)}{' '}
-                <a href="#" className="text-brand-orange underline">
-                  {language === 'ru' ? 'Читать правила' : 'Read rules'}
-                </a>
-              </span>
-            }
-            checked={rulesAccepted}
-            onChange={(e) => setRulesAccepted(e.target.checked)}
-          />
-        </Card>
+        {/* Rules */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" checked={rulesAccepted} onChange={e => setRulesAccepted(e.target.checked)} className="w-5 h-5 rounded text-orange-500" />
+            <span>{t('checkout_rules', language)}{' '}<a href="#" className="text-orange-500 underline">{language === 'ru' ? 'Читать правила' : 'Read rules'}</a></span>
+          </label>
+        </div>
 
         {/* Submit */}
-        <Button 
-          type="submit" 
-          variant="primary" 
-          className="w-full text-lg py-4"
-          disabled={!rulesAccepted}
-        >
+        <button type="submit" disabled={!rulesAccepted} className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold text-lg py-4 rounded-xl transition-colors">
           {t('checkout_place_order', language)}
-        </Button>
+        </button>
       </form>
     </div>
   );

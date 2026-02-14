@@ -1,37 +1,41 @@
-import { useTheme } from '../hooks/useTheme';
-import { useLanguage } from '../hooks/useLanguage';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useLanguageContext } from '../contexts/LanguageContext';
 
 export default function Header() {
-  const { theme, toggleTheme } = useTheme();
-  const { language, toggleLanguage } = useLanguage();
+  const { language, toggleLanguage } = useLanguageContext();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isHome = location.pathname === '/';
 
   return (
-    <header className="bg-light-surface dark:bg-dark-surface border-b border-light-border shadow-sm">
+    <header className="bg-white border-b border-gray-200 shadow-sm">
       <div className="container mx-auto px-4 py-3 flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <button
-            onClick={toggleLanguage}
-            className="px-3 py-1.5 rounded-md font-medium text-sm transition-colors bg-light-bg dark:bg-dark-bg hover:bg-brand-orange hover:text-white"
-          >
-            {language.toUpperCase()}
-          </button>
+          {isHome ? (
+            <button
+              onClick={toggleLanguage}
+              className="px-3 py-1.5 rounded-md font-medium text-sm transition-colors bg-gray-100 hover:bg-orange-500 hover:text-white"
+            >
+              {language === 'ru' ? 'EN' : 'RU'}
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate(-1)}
+              className="px-3 py-1.5 rounded-md font-medium text-sm transition-colors bg-gray-100 hover:bg-gray-200"
+            >
+              ← {language === 'ru' ? 'Назад' : 'Back'}
+            </button>
+          )}
         </div>
 
-        <div className="absolute left-1/2 transform -translate-x-1/2">
-          <h1 className="text-xl font-bold text-brand-orange">
-            GG HOOKAH
-          </h1>
-        </div>
+        <h1
+          className="text-xl font-bold text-orange-500 cursor-pointer"
+          onClick={() => navigate('/')}
+        >
+          GG HOOKAH
+        </h1>
 
-        <div className="flex items-center">
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-md hover:bg-light-bg dark:hover:bg-dark-bg transition-colors"
-            aria-label="Toggle theme"
-          >
-            {theme === 'light' ? '🌙' : '☀️'}
-          </button>
-        </div>
+        <div className="w-16" />
       </div>
     </header>
   );

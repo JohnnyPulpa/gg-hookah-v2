@@ -1,6 +1,4 @@
 import { Mix } from '../types';
-import Card from './Card';
-import Button from './Button';
 
 interface MixCardProps {
   mix: Mix;
@@ -17,32 +15,21 @@ export default function MixCard({ mix, onChoose, buttonText }: MixCardProps) {
   ];
 
   return (
-    <Card className="overflow-hidden">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 overflow-hidden">
       {/* Image */}
-      <div className="aspect-video bg-gray-200 dark:bg-gray-700 rounded-t-lg overflow-hidden -m-4 mb-4">
+      <div className="aspect-video bg-gray-200 rounded-lg overflow-hidden -mx-4 -mt-4 mb-4">
         {mix.image_url ? (
-          <img 
-            src={mix.image_url} 
-            alt={mix.name}
-            className="w-full h-full object-cover"
-          />
+          <img src={mix.image_url} alt={mix.name} className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-4xl">
-            🌿
-          </div>
+          <div className="w-full h-full flex items-center justify-center text-4xl">🌿</div>
         )}
       </div>
 
       {/* Content */}
       <div className="space-y-3">
-        {/* Title & Flavors */}
         <div>
-          <h3 className="text-lg font-bold text-brand-orange">
-            {mix.name}
-          </h3>
-          <p className="text-sm text-light-text-secondary dark:text-dark-text-secondary">
-            {mix.flavors}
-          </p>
+          <h3 className="text-lg font-bold text-orange-500">{mix.name}</h3>
+          <p className="text-sm text-gray-500">{mix.flavors}</p>
         </div>
 
         {/* Characteristics */}
@@ -52,14 +39,12 @@ export default function MixCard({ mix, onChoose, buttonText }: MixCardProps) {
               <span className="text-lg">{char.emoji}</span>
               <div className="flex-1">
                 <div className="flex justify-between text-xs mb-1">
-                  <span className="text-light-text-secondary dark:text-dark-text-secondary">
-                    {char.label}
-                  </span>
+                  <span className="text-gray-500">{char.label}</span>
                   <span className="font-medium">{char.value}/5</span>
                 </div>
-                <div className="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-brand-orange rounded-full transition-all"
+                <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-orange-500 rounded-full transition-all"
                     style={{ width: `${(char.value / 5) * 100}%` }}
                   />
                 </div>
@@ -70,18 +55,15 @@ export default function MixCard({ mix, onChoose, buttonText }: MixCardProps) {
 
         {/* Price & Button */}
         <div className="flex items-center justify-between pt-2">
-          <span className="text-2xl font-bold text-brand-orange">
-            {mix.price}₾
-          </span>
-          <Button 
-            variant="primary" 
+          <span className="text-2xl font-bold text-orange-500">{mix.price}₾</span>
+          <button
             onClick={() => onChoose(mix)}
-            className="px-4 py-2"
+            className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-2 rounded-xl transition-colors"
           >
             {buttonText}
-          </Button>
+          </button>
         </div>
       </div>
-    </Card>
+    </div>
   );
 }

@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mix } from '../types';
 import MixCard from '../components/MixCard';
-import { useLanguage } from '../hooks/useLanguage';
+import { useLanguageContext } from '../contexts/LanguageContext';
 import { t } from '../utils/translations';
 import { mixesApi } from '../api/mixes';
 
 export default function Catalog() {
   const navigate = useNavigate();
-  const { language } = useLanguage();
+  const { language } = useLanguageContext();
   const [mixes, setMixes] = useState<Mix[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,11 +55,11 @@ export default function Catalog() {
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-brand-orange mb-2">
+        <h1 className="text-3xl font-bold text-orange-500 mb-2">
           {t('catalog_title', language)}
         </h1>
-        <p className="text-light-text-secondary">
-          {language === 'ru' 
+        <p className="text-gray-500">
+          {language === 'ru'
             ? 'Выберите микс кальяна для вашего заказа'
             : 'Choose your hookah mix for the order'}
         </p>
@@ -79,8 +79,8 @@ export default function Catalog() {
       {mixes.length === 0 && (
         <div className="text-center py-12">
           <div className="text-6xl mb-4">🌿</div>
-          <p className="text-light-text-secondary">
-            {language === 'ru' 
+          <p className="text-gray-500">
+            {language === 'ru'
               ? 'Миксы скоро появятся'
               : 'Mixes coming soon'}
           </p>

@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand-orange: #F28C18;
+  --brand-green: #2E7D32;
+}
+
+/* Light theme (default) */
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+}

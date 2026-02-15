@@ -1,4 +1,5 @@
 import { Mix } from '../types';
+import { useLanguageContext } from '../contexts/LanguageContext';
 
 interface MixCardProps {
   mix: Mix;
@@ -7,11 +8,13 @@ interface MixCardProps {
 }
 
 export default function MixCard({ mix, onChoose, buttonText }: MixCardProps) {
+  const { language } = useLanguageContext();
+
   const characteristics = [
-    { label: 'Strength', value: mix.characteristics.strength, emoji: '💪' },
-    { label: 'Coolness', value: mix.characteristics.coolness, emoji: '❄️' },
-    { label: 'Sweetness', value: mix.characteristics.sweetness, emoji: '🍬' },
-    { label: 'Smokiness', value: mix.characteristics.smokiness, emoji: '💨' },
+    { label: language === 'ru' ? 'Крепость' : 'Strength', value: mix.characteristics.strength, emoji: '💪' },
+    { label: language === 'ru' ? 'Свежесть' : 'Coolness', value: mix.characteristics.coolness, emoji: '❄️' },
+    { label: language === 'ru' ? 'Сладость' : 'Sweetness', value: mix.characteristics.sweetness, emoji: '🍬' },
+    { label: language === 'ru' ? 'Дымность' : 'Smokiness', value: mix.characteristics.smokiness, emoji: '💨' },
   ];
 
   return (

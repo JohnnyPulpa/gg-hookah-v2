@@ -31,7 +31,7 @@ export default function Catalog() {
   };
 
   const handleChooseMix = (mix: Mix) => {
-    navigate('/checkout', { state: { selectedMix: mix } });
+    navigate('/drinks-question', { state: { selectedMix: mix } });
   };
 
   if (loading) {

@@ -4,14 +4,19 @@ import { useLanguageContext } from '../contexts/LanguageContext';
 import { t } from '../utils/translations';
 import { DepositType } from '../types';
 
+interface DrinkSelection {
+  drink: { id: string; name: string; price: number };
+  qty: number;
+}
+
 export default function Checkout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { language } = useLanguageContext();
 
   const selectedMix = location.state?.selectedMix;
+  const selectedDrinks: DrinkSelection[] = location.state?.selectedDrinks || [];
 
-  // Form state
   const [address, setAddress] = useState('');
   const [entrance, setEntrance] = useState('');
   const [floor, setFloor] = useState('');
@@ -23,8 +28,12 @@ export default function Checkout() {
   const [promoCode, setPromoCode] = useState('');
   const [rulesAccepted, setRulesAccepted] = useState(false);
 
-  // TODO: check from API by phone
   const hasPassportOnFile = false;
+
+  // Price calculation
+  const hookahPrice = selectedMix?.price || 70;
+  const drinksTotal = selectedDrinks.reduce((sum, s) => sum + s.drink.price * s.qty, 0);
+  const totalPrice = hookahPrice + drinksTotal;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +42,7 @@ export default function Checkout() {
       return;
     }
     // TODO: POST /api/orders
-    console.log('Order:', { mix: selectedMix, address, entrance, floor, apartment, doorCode, phone, comment, depositType, promoCode });
+    console.log('Order:', { mix: selectedMix, drinks: selectedDrinks, address, entrance, floor, apartment, doorCode, phone, comment, depositType, promoCode });
     alert(language === 'ru' ? 'Заказ создан!' : 'Order created!');
     navigate('/orders');
   };
@@ -61,14 +70,41 @@ export default function Checkout() {
         {t('checkout_title', language)}
       </h1>
 
-      {/* Selected Mix Summary */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+      {/* Order Summary */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 space-y-3">
+        <h2 className="text-xl font-semibold">{language === 'ru' ? 'Ваш заказ' : 'Your order'}</h2>
+
+        {/* Hookah */}
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-bold text-lg">{selectedMix.name}</h3>
+            <h3 className="font-bold">{selectedMix.name}</h3>
             <p className="text-sm text-gray-500">{selectedMix.flavors}</p>
           </div>
-          <div className="text-2xl font-bold text-orange-500">{selectedMix.price}₾</div>
+          <div className="font-bold text-orange-500">{hookahPrice}₾</div>
+        </div>
+
+        {/* Drinks */}
+        {selectedDrinks.length > 0 && (
+          <>
+            <hr className="border-gray-200" />
+            {selectedDrinks.map((s) => (
+              <div key={s.drink.id} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span>🥤</span>
+                  <span>{s.drink.name}</span>
+                  <span className="text-gray-400">×{s.qty}</span>
+                </div>
+                <div className="font-medium">{s.drink.price * s.qty}₾</div>
+              </div>
+            ))}
+          </>
+        )}
+
+        {/* Total */}
+        <hr className="border-gray-200" />
+        <div className="flex items-center justify-between">
+          <span className="text-lg font-bold">{language === 'ru' ? 'Итого' : 'Total'}</span>
+          <span className="text-2xl font-bold text-orange-500">{totalPrice}₾</span>
         </div>
       </div>
 
@@ -162,7 +198,7 @@ export default function Checkout() {
 
         {/* Submit */}
         <button type="submit" disabled={!rulesAccepted} className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold text-lg py-4 rounded-xl transition-colors">
-          {t('checkout_place_order', language)}
+          {t('checkout_place_order', language)} — {totalPrice}₾
         </button>
       </form>
     </div>

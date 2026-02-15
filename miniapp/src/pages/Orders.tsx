@@ -1,123 +1,189 @@
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguageContext } from '../contexts/LanguageContext';
-import { t } from '../utils/translations';
-import type { Order, OrderStatus } from '../types';
+import { getOrders, OrderData } from '../api/orders';
+
+const STATUS_LABELS: Record<string, { ru: string; en: string; color: string }> = {
+  NEW: { ru: 'Новый', en: 'New', color: 'bg-blue-100 text-blue-700' },
+  CONFIRMED: { ru: 'Подтверждён', en: 'Confirmed', color: 'bg-indigo-100 text-indigo-700' },
+  ON_THE_WAY: { ru: 'В пути', en: 'On the way', color: 'bg-yellow-100 text-yellow-700' },
+  DELIVERED: { ru: 'Доставлен', en: 'Delivered', color: 'bg-green-100 text-green-700' },
+  SESSION_ACTIVE: { ru: 'Сессия активна', en: 'Session active', color: 'bg-green-100 text-green-700' },
+  SESSION_ENDING: { ru: 'Сессия заканчивается', en: 'Session ending', color: 'bg-orange-100 text-orange-700' },
+  WAITING_FOR_PICKUP: { ru: 'Ожидает забора', en: 'Waiting for pickup', color: 'bg-purple-100 text-purple-700' },
+  COMPLETED: { ru: 'Завершён', en: 'Completed', color: 'bg-gray-100 text-gray-600' },
+  CANCELED: { ru: 'Отменён', en: 'Canceled', color: 'bg-red-100 text-red-600' },
+};
+
+function SessionTimer({ endsAt }: { endsAt: string }) {
+  const [remaining, setRemaining] = useState('');
+
+  useEffect(() => {
+    const update = () => {
+      const diff = new Date(endsAt).getTime() - Date.now();
+      if (diff <= 0) {
+        setRemaining('00:00');
+        return;
+      }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setRemaining(h > 0 ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`);
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, [endsAt]);
+
+  return (
+    <div className="text-center py-3">
+      <div className="text-4xl font-mono font-bold text-orange-500">{remaining}</div>
+      <div className="text-sm text-gray-500 mt-1">⏱</div>
+    </div>
+  );
+}
+
+function OrderCard({ order, language, isActive }: { order: OrderData; language: string; isActive: boolean }) {
+  const status = STATUS_LABELS[order.status] || { ru: order.status, en: order.status, color: 'bg-gray-100 text-gray-600' };
+  const showTimer = isActive && order.session_ends_at && ['SESSION_ACTIVE', 'SESSION_ENDING'].includes(order.status);
+
+  return (
+    <div className={`bg-white rounded-xl shadow-sm border ${isActive ? 'border-orange-300' : 'border-gray-200'} p-4 space-y-3`}>
+      {/* Status + date */}
+      <div className="flex items-center justify-between">
+        <span className={`text-xs font-semibold px-2 py-1 rounded ${status.color}`}>
+          {language === 'ru' ? status.ru : status.en}
+        </span>
+        <span className="text-xs text-gray-400">
+          {new Date(order.created_at).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+        </span>
+      </div>
+
+      {/* Timer */}
+      {showTimer && <SessionTimer endsAt={order.session_ends_at!} />}
+
+      {/* Mix info */}
+      <div className="flex items-center gap-3">
+        {order.mix_image && <img src={order.mix_image} alt="" className="w-12 h-12 rounded-lg object-cover" />}
+        <div>
+          <div className="font-bold">{order.mix_name}</div>
+          <div className="text-sm text-gray-500">{order.mix_flavors}</div>
+        </div>
+      </div>
+
+      {/* Items */}
+      {order.items.filter(i => i.type === 'drink').length > 0 && (
+        <div className="text-sm text-gray-600">
+          {order.items.filter(i => i.type === 'drink').map((item, idx) => (
+            <span key={idx}>{item.name} ×{item.quantity}{idx < order.items.filter(i => i.type === 'drink').length - 1 ? ', ' : ''}</span>
+          ))}
+        </div>
+      )}
+
+      {/* Total + deposit */}
+      <div className="flex items-center justify-between">
+        <span className="font-bold text-lg text-orange-500">{order.total}₾</span>
+        <span className="text-xs px-2 py-1 rounded bg-gray-100">
+          {order.deposit_type === 'cash' ? '💵 100₾' : order.deposit_type === 'passport' ? '🪪' : '✓'}
+        </span>
+      </div>
+
+      {/* Promised time */}
+      {isActive && order.promised_eta_text && (
+        <div className="text-sm text-gray-600">
+          ⏰ {order.promised_eta_text}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Orders() {
   const navigate = useNavigate();
+  const locationState = useLocation().state as { justCreated?: boolean } | null;
   const { language } = useLanguageContext();
 
-  // TODO: load from API — GET /api/orders
-  const activeOrder = null as Order | null;
+  const [active, setActive] = useState<OrderData | null>(null);
+  const [history, setHistory] = useState<OrderData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showSuccess, setShowSuccess] = useState(locationState?.justCreated || false);
 
-  const orderHistory: Order[] = [
-    {
-      id: '1',
-      status: 'COMPLETED',
-      mix_id: '1',
-      mix_name: 'Lemon Mint',
-      phone: '+995555123456',
-      address_text: 'ул. Руставели, 15',
-      total_price: 70,
-      deposit_type: 'cash',
-      created_at: '2026-02-05T20:30:00Z'
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 0;
+        const data = await getOrders(telegramId);
+        setActive(data.active);
+        setHistory(data.history);
+      } catch (err) {
+        console.error('Failed to fetch orders:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOrders();
+  }, []);
+
+  // Auto-hide success message
+  useEffect(() => {
+    if (showSuccess) {
+      const timer = setTimeout(() => setShowSuccess(false), 5000);
+      return () => clearTimeout(timer);
     }
-  ];
+  }, [showSuccess]);
 
-  const statusLabels: Record<OrderStatus, { color: string; label: string }> = {
-    NEW: { color: 'bg-blue-100 text-blue-700', label: language === 'ru' ? 'Новый' : 'New' },
-    CONFIRMED: { color: 'bg-blue-100 text-blue-700', label: language === 'ru' ? 'Подтвержден' : 'Confirmed' },
-    ON_THE_WAY: { color: 'bg-yellow-100 text-yellow-700', label: language === 'ru' ? 'В пути' : 'On the way' },
-    DELIVERED: { color: 'bg-green-100 text-green-700', label: language === 'ru' ? 'Доставлен' : 'Delivered' },
-    SESSION_ACTIVE: { color: 'bg-green-100 text-green-700', label: language === 'ru' ? 'Сессия' : 'Session' },
-    SESSION_ENDING: { color: 'bg-yellow-100 text-yellow-700', label: language === 'ru' ? 'Завершается' : 'Ending' },
-    WAITING_FOR_PICKUP: { color: 'bg-yellow-100 text-yellow-700', label: language === 'ru' ? 'Ждем возврата' : 'Pickup' },
-    COMPLETED: { color: 'bg-gray-100 text-gray-700', label: language === 'ru' ? 'Завершен' : 'Completed' },
-    CANCELED: { color: 'bg-red-100 text-red-700', label: language === 'ru' ? 'Отменен' : 'Canceled' },
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat(language === 'ru' ? 'ru-RU' : 'en-US', {
-      day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
-    }).format(date);
-  };
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto text-center py-12">
+        <div className="text-4xl mb-4 animate-pulse">🔄</div>
+        <p className="text-gray-500">{language === 'ru' ? 'Загрузка...' : 'Loading...'}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <h1 className="text-3xl font-bold text-orange-500 mb-2">
-        {t('orders_title', language)}
+        {language === 'ru' ? 'Заказы' : 'Orders'}
       </h1>
 
-      {/* Active order or empty state */}
-      {activeOrder ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">{t('orders_active', language)}</h2>
-            <span className={`text-xs font-semibold px-2 py-1 rounded ${statusLabels[activeOrder.status].color}`}>
-              {statusLabels[activeOrder.status].label}
-            </span>
-          </div>
-          <div className="space-y-3">
-            <div>
-              <div className="text-sm text-gray-500">{language === 'ru' ? 'Микс' : 'Mix'}</div>
-              <div className="font-medium">{activeOrder.mix_name}</div>
-            </div>
-            <div>
-              <div className="text-sm text-gray-500">{language === 'ru' ? 'Адрес' : 'Address'}</div>
-              <div className="font-medium">{activeOrder.address_text}</div>
-            </div>
-            {activeOrder.session_ends_at && (
-              <div>
-                <div className="text-sm text-gray-500 mb-2">{language === 'ru' ? 'Осталось времени' : 'Time remaining'}</div>
-                <div className="text-3xl font-bold text-orange-500">01:45:30</div>
-              </div>
-            )}
-            <div className="pt-3">
-              <button className="w-full border-2 border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white font-semibold py-2 rounded-xl transition-colors">
-                {t('support', language)}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
-          <div className="text-5xl mb-4">🌿</div>
-          <h2 className="text-xl font-semibold mb-2">
-            {language === 'ru' ? 'Нет активных заказов' : 'No active orders'}
-          </h2>
-          <p className="text-gray-500 mb-4">
-            {language === 'ru' ? 'Закажите кальян прямо сейчас!' : 'Order a hookah right now!'}
-          </p>
-          <button onClick={() => navigate('/catalog')} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors">
-            {t('home_order_button', language)}
-          </button>
+      {/* Success message after order creation */}
+      {showSuccess && (
+        <div className="bg-green-50 border border-green-300 text-green-700 px-4 py-3 rounded-xl">
+          <div className="font-bold">{language === 'ru' ? '✅ Заказ получен!' : '✅ Order received!'}</div>
+          <div className="text-sm mt-1">{language === 'ru' ? 'Мы свяжемся по телефону, чтобы подтвердить детали.' : 'We will call you to confirm details.'}</div>
         </div>
       )}
 
-      {/* Order history */}
-      {orderHistory.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold">{t('orders_history', language)}</h2>
-          {orderHistory.map((order) => (
-            <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium">{order.mix_name}</span>
-                    <span className={`text-xs font-semibold px-2 py-1 rounded ${statusLabels[order.status].color}`}>
-                      {statusLabels[order.status].label}
-                    </span>
-                  </div>
-                  <div className="text-sm text-gray-500">{formatDate(order.created_at)}</div>
-                </div>
-                <div className="text-lg font-bold text-orange-500">{order.total_price}₾</div>
-              </div>
-              <button onClick={() => navigate('/catalog')} className="w-full text-gray-500 hover:text-orange-500 font-medium py-2 transition-colors">
-                {t('orders_order_again', language)}
-              </button>
-            </div>
-          ))}
+      {/* Active order */}
+      {active && (
+        <div>
+          <h2 className="text-lg font-semibold mb-2">{language === 'ru' ? 'Активный заказ' : 'Active order'}</h2>
+          <OrderCard order={active} language={language} isActive={true} />
+        </div>
+      )}
+
+      {/* History */}
+      {history.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold mb-2">{language === 'ru' ? 'История' : 'History'}</h2>
+          <div className="space-y-3">
+            {history.map(order => (
+              <OrderCard key={order.id} order={order} language={language} isActive={false} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!active && history.length === 0 && !showSuccess && (
+        <div className="text-center py-12">
+          <div className="text-6xl mb-4">🫧</div>
+          <h2 className="text-2xl font-bold mb-2">{language === 'ru' ? 'Пока пусто' : 'No orders yet'}</h2>
+          <p className="text-gray-500 mb-6">{language === 'ru' ? 'Оформите первый заказ!' : 'Place your first order!'}</p>
+          <button onClick={() => navigate('/catalog')} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors">
+            {language === 'ru' ? 'Заказать кальян' : 'Order hookah'}
+          </button>
         </div>
       )}
     </div>

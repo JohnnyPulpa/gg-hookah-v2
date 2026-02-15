@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguageContext } from '../contexts/LanguageContext';
 import { t } from '../utils/translations';
 import { DepositType } from '../types';
+import { createOrder } from '../api/orders';
 
 interface DrinkSelection {
   drink: { id: string; name: string; price: number };
@@ -27,6 +28,8 @@ export default function Checkout() {
   const [depositType, setDepositType] = useState<DepositType>('cash');
   const [promoCode, setPromoCode] = useState('');
   const [rulesAccepted, setRulesAccepted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   const hasPassportOnFile = false;
 
@@ -35,16 +38,40 @@ export default function Checkout() {
   const drinksTotal = selectedDrinks.reduce((sum, s) => sum + s.drink.price * s.qty, 0);
   const totalPrice = hookahPrice + drinksTotal;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!rulesAccepted) {
-      alert(language === 'ru' ? 'Подтвердите согласие с правилами' : 'Please accept the rules');
-      return;
+    if (!rulesAccepted || isSubmitting) return;
+
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      // TODO: get real telegram_id from Telegram Mini App SDK
+      const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 0;
+
+      const result = await createOrder({
+        telegram_id: telegramId,
+        mix_id: selectedMix.id,
+        drinks: selectedDrinks.map(s => ({ drink_id: s.drink.id, qty: s.qty })),
+        address_text: address,
+        entrance,
+        floor,
+        apartment,
+        door_code: doorCode,
+        phone,
+        comment,
+        deposit_type: depositType,
+        promo_code: promoCode || undefined,
+      });
+
+      // Navigate to success/orders screen
+      navigate('/orders', { state: { justCreated: true, orderId: result.order_id } });
+    } catch (err: any) {
+      const msg = err.response?.data?.error || (language === 'ru' ? 'Ошибка создания заказа' : 'Failed to create order');
+      setError(msg);
+    } finally {
+      setIsSubmitting(false);
     }
-    // TODO: POST /api/orders
-    console.log('Order:', { mix: selectedMix, drinks: selectedDrinks, address, entrance, floor, apartment, doorCode, phone, comment, depositType, promoCode });
-    alert(language === 'ru' ? 'Заказ создан!' : 'Order created!');
-    navigate('/orders');
   };
 
   if (!selectedMix) {
@@ -69,6 +96,13 @@ export default function Checkout() {
       <h1 className="text-3xl font-bold text-orange-500 mb-2">
         {t('checkout_title', language)}
       </h1>
+
+      {/* Error message */}
+      {error && (
+        <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded-xl">
+          {error}
+        </div>
+      )}
 
       {/* Order Summary */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 space-y-3">
@@ -197,8 +231,11 @@ export default function Checkout() {
         </div>
 
         {/* Submit */}
-        <button type="submit" disabled={!rulesAccepted} className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold text-lg py-4 rounded-xl transition-colors">
-          {t('checkout_place_order', language)} — {totalPrice}₾
+        <button type="submit" disabled={!rulesAccepted || isSubmitting} className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold text-lg py-4 rounded-xl transition-colors">
+          {isSubmitting
+            ? (language === 'ru' ? 'Оформляем...' : 'Placing order...')
+            : `${t('checkout_place_order', language)} — ${totalPrice}₾`
+          }
         </button>
       </form>
     </div>

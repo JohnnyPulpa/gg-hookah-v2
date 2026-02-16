@@ -1,69 +1,155 @@
 import { Mix } from '../types';
 import { useLanguageContext } from '../contexts/LanguageContext';
+import { t } from '../utils/translations';
 
 interface MixCardProps {
   mix: Mix;
   onChoose: (mix: Mix) => void;
-  buttonText: string;
 }
 
-export default function MixCard({ mix, onChoose, buttonText }: MixCardProps) {
+// Color themes for mix cards based on name patterns
+const mixColors: Record<string, string> = {
+  lemon: 'linear-gradient(135deg, #2E7D32, #1B5E20)',
+  mint: 'linear-gradient(135deg, #2E7D32, #1B5E20)',
+  tropical: 'linear-gradient(135deg, #E65100, #BF360C)',
+  paradise: 'linear-gradient(135deg, #E65100, #BF360C)',
+  apple: 'linear-gradient(135deg, #C62828, #8E0000)',
+  blueberry: 'linear-gradient(135deg, #1565C0, #0D47A1)',
+  ice: 'linear-gradient(135deg, #1565C0, #0D47A1)',
+  default: 'linear-gradient(135deg, #2E7D32, #1B5E20)',
+};
+
+function getMixGradient(name: string): string {
+  const lower = name.toLowerCase();
+  for (const [key, value] of Object.entries(mixColors)) {
+    if (key !== 'default' && lower.includes(key)) return value;
+  }
+  return mixColors.default;
+}
+
+function getMixEmoji(name: string): string {
+  const lower = name.toLowerCase();
+  if (lower.includes('lemon') || lower.includes('mint')) return '🍋';
+  if (lower.includes('tropical') || lower.includes('paradise')) return '🏝️';
+  if (lower.includes('apple')) return '🍎';
+  if (lower.includes('blueberry')) return '🫐';
+  return '🌿';
+}
+
+export default function MixCard({ mix, onChoose }: MixCardProps) {
   const { language } = useLanguageContext();
 
-  const characteristics = [
-    { label: language === 'ru' ? 'Крепость' : 'Strength', value: mix.characteristics.strength, emoji: '💪' },
-    { label: language === 'ru' ? 'Свежесть' : 'Coolness', value: mix.characteristics.coolness, emoji: '❄️' },
-    { label: language === 'ru' ? 'Сладость' : 'Sweetness', value: mix.characteristics.sweetness, emoji: '🍬' },
-    { label: language === 'ru' ? 'Дымность' : 'Smokiness', value: mix.characteristics.smokiness, emoji: '💨' },
+  const chars = [
+    { key: 'strength' as const, label: t('char_strength', language) },
+    { key: 'coolness' as const, label: t('char_coolness', language) },
+    { key: 'sweetness' as const, label: t('char_sweetness', language) },
+    { key: 'smokiness' as const, label: t('char_smokiness', language) },
   ];
 
+  const renderMiniDots = (value: number) => (
+    <div className="flex" style={{ gap: 2 }}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <div
+          key={i}
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            background: i <= value ? 'var(--orange)' : 'var(--border)',
+          }}
+        />
+      ))}
+    </div>
+  );
+
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 overflow-hidden">
-      {/* Image */}
-      <div className="aspect-video bg-gray-200 rounded-lg overflow-hidden -mx-4 -mt-4 mb-4">
-        {mix.image_url ? (
-          <img src={mix.image_url} alt={mix.name} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-4xl">🌿</div>
-        )}
+    <div
+      style={{
+        background: 'var(--bg-card)',
+        borderRadius: 'var(--radius)',
+        overflow: 'hidden',
+        boxShadow: 'var(--shadow)',
+        border: '1px solid var(--border)',
+        display: 'flex',
+        transition: 'transform 0.2s, box-shadow 0.2s',
+      }}
+    >
+      {/* Left image area */}
+      <div
+        className="flex items-center justify-center flex-shrink-0"
+        style={{
+          width: 110,
+          minHeight: 130,
+          background: getMixGradient(mix.name),
+          fontSize: 40,
+        }}
+      >
+        {getMixEmoji(mix.name)}
       </div>
 
-      {/* Content */}
-      <div className="space-y-3">
-        <div>
-          <h3 className="text-lg font-bold text-orange-500">{mix.name}</h3>
-          <p className="text-sm text-gray-500">{mix.flavors}</p>
+      {/* Right body */}
+      <div
+        className="flex flex-col flex-1"
+        style={{ padding: '12px 14px' }}
+      >
+        <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>
+          {mix.name} {mix.is_featured ? '⭐' : ''}
+        </div>
+        <div
+          style={{
+            fontSize: 12,
+            color: 'var(--text-secondary)',
+            fontWeight: 600,
+            margin: '2px 0 8px',
+          }}
+        >
+          {mix.flavors}
         </div>
 
-        {/* Characteristics */}
-        <div className="grid grid-cols-2 gap-2">
-          {characteristics.map((char) => (
-            <div key={char.label} className="flex items-center gap-2">
-              <span className="text-lg">{char.emoji}</span>
-              <div className="flex-1">
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="text-gray-500">{char.label}</span>
-                  <span className="font-medium">{char.value}/5</span>
-                </div>
-                <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-orange-500 rounded-full transition-all"
-                    style={{ width: `${(char.value / 5) * 100}%` }}
-                  />
-                </div>
-              </div>
+        {/* Mini characteristics grid */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '3px 10px',
+            marginBottom: 10,
+          }}
+        >
+          {chars.map((c) => (
+            <div
+              key={c.key}
+              className="flex items-center"
+              style={{ gap: 4, fontSize: 10, fontWeight: 700, color: 'var(--text-muted)' }}
+            >
+              <span>{c.label}</span>
+              {renderMiniDots(mix.characteristics[c.key] || 0)}
             </div>
           ))}
         </div>
 
-        {/* Price & Button */}
-        <div className="flex items-center justify-between pt-2">
-          <span className="text-2xl font-bold text-orange-500">{mix.price}₾</span>
+        {/* Price + Choose button */}
+        <div
+          className="flex items-center justify-between"
+          style={{ marginTop: 'auto' }}
+        >
+          <span style={{ fontSize: 18, fontWeight: 900, color: 'var(--orange)' }}>
+            {mix.price}₾
+          </span>
           <button
             onClick={() => onChoose(mix)}
-            className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-2 rounded-xl transition-colors"
+            style={{
+              padding: '8px 20px',
+              background: 'var(--orange)',
+              color: 'white',
+              border: 'none',
+              borderRadius: 'var(--radius-sm)',
+              fontFamily: "'Nunito', sans-serif",
+              fontSize: 13,
+              fontWeight: 800,
+              cursor: 'pointer',
+            }}
           >
-            {buttonText}
+            {t('catalog_choose', language)}
           </button>
         </div>
       </div>

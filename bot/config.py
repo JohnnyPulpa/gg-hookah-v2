@@ -13,7 +13,7 @@ DOMAIN = os.getenv("DOMAIN", "gghokah.delivery")
 
 # Mini App URL (used for WebApp buttons)
 # Until DNS+SSL are ready, use IP-based URL
-MINI_APP_URL = f"https://{DOMAIN}"
+MINI_APP_URL = "https://gghookah.delivery"
 
 # Fallback: if no domain with SSL, bot WebApp button won't work
 # TODO: set real HTTPS URL once SSL is configured

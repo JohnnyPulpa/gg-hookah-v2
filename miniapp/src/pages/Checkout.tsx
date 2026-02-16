@@ -31,28 +31,21 @@ export default function Checkout() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const hasPassportOnFile = false;
-
-  // Price calculation
   const hookahPrice = selectedMix?.price || 70;
-  const drinksTotal = selectedDrinks.reduce((sum, s) => sum + s.drink.price * s.qty, 0);
+  const drinksTotal = selectedDrinks.reduce((sum: number, s: DrinkSelection) => sum + s.drink.price * s.qty, 0);
   const totalPrice = hookahPrice + drinksTotal;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!rulesAccepted || isSubmitting) return;
-
+  const handleSubmit = async () => {
+    if (!rulesAccepted || isSubmitting || !selectedMix) return;
     setIsSubmitting(true);
     setError('');
 
     try {
-      // TODO: get real telegram_id from Telegram Mini App SDK
       const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 0;
-
       const result = await createOrder({
         telegram_id: telegramId,
         mix_id: selectedMix.id,
-        drinks: selectedDrinks.map(s => ({ drink_id: s.drink.id, qty: s.qty })),
+        drinks: selectedDrinks.map((s: DrinkSelection) => ({ drink_id: s.drink.id, qty: s.qty })),
         address_text: address,
         entrance,
         floor,
@@ -63,8 +56,6 @@ export default function Checkout() {
         deposit_type: depositType,
         promo_code: promoCode || undefined,
       });
-
-      // Navigate to success/orders screen
       navigate('/orders', { state: { justCreated: true, orderId: result.order_id } });
     } catch (err: any) {
       const msg = err.response?.data?.error || (language === 'ru' ? 'Ошибка создания заказа' : 'Failed to create order');
@@ -76,15 +67,12 @@ export default function Checkout() {
 
   if (!selectedMix) {
     return (
-      <div className="max-w-2xl mx-auto text-center py-12">
-        <div className="text-6xl mb-4">🤔</div>
-        <h2 className="text-2xl font-bold mb-2">
+      <div className="flex flex-col items-center justify-center" style={{ paddingTop: 60 }}>
+        <div style={{ fontSize: 48, marginBottom: 12 }}>🤔</div>
+        <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', marginBottom: 8 }}>
           {language === 'ru' ? 'Микс не выбран' : 'No mix selected'}
-        </h2>
-        <p className="text-gray-500 mb-6">
-          {language === 'ru' ? 'Пожалуйста, выберите микс из каталога' : 'Please choose a mix from the catalog'}
-        </p>
-        <button onClick={() => navigate('/catalog')} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors">
+        </div>
+        <button className="btn-primary" style={{ maxWidth: 280 }} onClick={() => navigate('/catalog')}>
           {language === 'ru' ? 'Перейти в каталог' : 'Go to catalog'}
         </button>
       </div>
@@ -92,152 +80,209 @@ export default function Checkout() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <h1 className="text-3xl font-bold text-orange-500 mb-2">
-        {t('checkout_title', language)}
-      </h1>
-
-      {/* Error message */}
+    <div className="flex flex-col">
+      {/* Error */}
       {error && (
-        <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded-xl">
+        <div
+          style={{
+            background: '#FFEBEE',
+            border: '1.5px solid #C62828',
+            borderRadius: 'var(--radius-sm)',
+            padding: '10px 14px',
+            marginBottom: 12,
+            fontSize: 13,
+            fontWeight: 600,
+            color: '#C62828',
+          }}
+        >
           {error}
         </div>
       )}
 
       {/* Order Summary */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 space-y-3">
-        <h2 className="text-xl font-semibold">{language === 'ru' ? 'Ваш заказ' : 'Your order'}</h2>
-
-        {/* Hookah */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-bold">{selectedMix.name}</h3>
-            <p className="text-sm text-gray-500">{selectedMix.flavors}</p>
-          </div>
-          <div className="font-bold text-orange-500">{hookahPrice}₾</div>
+      <div
+        style={{
+          background: 'var(--bg-card)',
+          borderRadius: 'var(--radius)',
+          padding: '14px 16px',
+          boxShadow: 'var(--shadow)',
+          border: '1px solid var(--border)',
+          marginBottom: 16,
+        }}
+      >
+        <div className="section-label">{t('checkout_your_order', language)}</div>
+        <div className="flex justify-between" style={{ padding: '6px 0', fontSize: 14 }}>
+          <span style={{ color: 'var(--text)', fontWeight: 600 }}>🌿 {selectedMix.name}</span>
+          <span style={{ color: 'var(--text)', fontWeight: 700 }}>{hookahPrice}₾</span>
         </div>
-
-        {/* Drinks */}
-        {selectedDrinks.length > 0 && (
-          <>
-            <hr className="border-gray-200" />
-            {selectedDrinks.map((s) => (
-              <div key={s.drink.id} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span>🥤</span>
-                  <span>{s.drink.name}</span>
-                  <span className="text-gray-400">×{s.qty}</span>
-                </div>
-                <div className="font-medium">{s.drink.price * s.qty}₾</div>
-              </div>
-            ))}
-          </>
-        )}
-
-        {/* Total */}
-        <hr className="border-gray-200" />
-        <div className="flex items-center justify-between">
-          <span className="text-lg font-bold">{language === 'ru' ? 'Итого' : 'Total'}</span>
-          <span className="text-2xl font-bold text-orange-500">{totalPrice}₾</span>
+        {selectedDrinks.map((s: DrinkSelection) => (
+          <div key={s.drink.id} className="flex justify-between" style={{ padding: '6px 0', fontSize: 14 }}>
+            <span style={{ color: 'var(--text)', fontWeight: 600 }}>
+              🥤 {s.drink.name} × {s.qty}
+            </span>
+            <span style={{ color: 'var(--text)', fontWeight: 700 }}>{s.drink.price * s.qty}₾</span>
+          </div>
+        ))}
+        <hr style={{ border: 'none', borderTop: '1px dashed var(--border)', margin: '6px 0' }} />
+        <div className="flex justify-between" style={{ padding: '6px 0 0', fontSize: 16, fontWeight: 800 }}>
+          <span>{t('checkout_total', language)}</span>
+          <span style={{ color: 'var(--orange)' }}>{totalPrice}₾</span>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Address */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 space-y-3">
-          <h2 className="text-xl font-semibold">{t('checkout_address', language)}</h2>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{language === 'ru' ? 'Адрес *' : 'Address *'}</label>
-            <input type="text" required value={address} onChange={e => setAddress(e.target.value)} placeholder={language === 'ru' ? 'Улица, дом' : 'Street, building'} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{language === 'ru' ? 'Подъезд' : 'Entrance'}</label>
-              <input type="text" value={entrance} onChange={e => setEntrance(e.target.value)} placeholder="1" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{language === 'ru' ? 'Этаж' : 'Floor'}</label>
-              <input type="text" value={floor} onChange={e => setFloor(e.target.value)} placeholder="5" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{language === 'ru' ? 'Квартира' : 'Apartment'}</label>
-              <input type="text" value={apartment} onChange={e => setApartment(e.target.value)} placeholder="42" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{language === 'ru' ? 'Код домофона' : 'Door code'}</label>
-              <input type="text" value={doorCode} onChange={e => setDoorCode(e.target.value)} placeholder="1234" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-            </div>
-          </div>
+      {/* Address */}
+      <div className="form-group">
+        <label className="form-label">{t('checkout_address', language)}</label>
+        <input
+          className="form-input"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder={language === 'ru' ? 'ул. Горгиладзе, 28' : 'Gorgiladze st., 28'}
+        />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div className="form-group">
+          <label className="form-label">{t('checkout_entrance', language)}</label>
+          <input className="form-input" value={entrance} onChange={(e) => setEntrance(e.target.value)} placeholder="—" />
         </div>
-
-        {/* Contact */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 space-y-3">
-          <h2 className="text-xl font-semibold">{language === 'ru' ? 'Контакты' : 'Contact'}</h2>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('checkout_phone', language)} *</label>
-            <input type="tel" required value={phone} onChange={e => setPhone(e.target.value)} placeholder="+995 555 123 456" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('checkout_comment', language)}</label>
-            <input type="text" value={comment} onChange={e => setComment(e.target.value)} placeholder={language === 'ru' ? 'Дополнительная информация' : 'Additional info'} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-          </div>
+        <div className="form-group">
+          <label className="form-label">{t('checkout_floor', language)}</label>
+          <input className="form-input" value={floor} onChange={(e) => setFloor(e.target.value)} placeholder="—" />
         </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div className="form-group">
+          <label className="form-label">{t('checkout_apartment', language)}</label>
+          <input className="form-input" value={apartment} onChange={(e) => setApartment(e.target.value)} placeholder="—" />
+        </div>
+        <div className="form-group">
+          <label className="form-label">{t('checkout_door_code', language)}</label>
+          <input className="form-input" value={doorCode} onChange={(e) => setDoorCode(e.target.value)} placeholder="—" />
+        </div>
+      </div>
 
-        {/* Deposit */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <h2 className="text-xl font-semibold mb-4">{t('checkout_deposit', language)}</h2>
-          {hasPassportOnFile ? (
-            <div className="flex items-center gap-2 text-green-600">
-              <span className="bg-green-100 text-green-700 text-xs font-semibold px-2 py-1 rounded">✓ {language === 'ru' ? 'Паспорт в базе' : 'Passport on file'}</span>
-              <span className="text-sm">{language === 'ru' ? 'Залог не требуется' : 'No deposit required'}</span>
+      {/* Phone */}
+      <div className="form-group">
+        <label className="form-label">{t('checkout_phone', language)}</label>
+        <input
+          className="form-input"
+          type="tel"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="+995 555 123 456"
+        />
+      </div>
+
+      {/* Comment */}
+      <div className="form-group">
+        <label className="form-label">{t('checkout_comment', language)}</label>
+        <input
+          className="form-input"
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder={t('checkout_comment_placeholder', language)}
+        />
+      </div>
+
+      {/* Deposit */}
+      <div className="form-group">
+        <label className="form-label">{t('checkout_deposit', language)}</label>
+        <div className="flex" style={{ gap: 10 }}>
+          {(['cash', 'passport'] as DepositType[]).map((type) => (
+            <div
+              key={type}
+              onClick={() => setDepositType(type)}
+              style={{
+                flex: 1,
+                padding: 12,
+                background: depositType === type ? 'rgba(242,140,24,0.06)' : 'var(--bg-input)',
+                border: `2px solid ${depositType === type ? 'var(--orange)' : 'var(--border)'}`,
+                borderRadius: 'var(--radius-sm)',
+                textAlign: 'center',
+                cursor: 'pointer',
+                fontFamily: "'Nunito', sans-serif",
+              }}
+            >
+              <div style={{ fontSize: 24 }}>{type === 'cash' ? '💵' : '🪪'}</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginTop: 4 }}>
+                {type === 'cash' ? t('checkout_deposit_cash', language) : t('checkout_deposit_passport', language)}
+              </div>
             </div>
-          ) : (
-            <div className="space-y-3">
-              <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                <input type="radio" name="deposit" checked={depositType === 'cash'} onChange={() => setDepositType('cash')} className="w-5 h-5 text-orange-500" />
-                <div className="flex-1">
-                  <div className="font-medium">{t('checkout_deposit_cash', language)}</div>
-                  <div className="text-sm text-gray-500">{language === 'ru' ? 'Наличными курьеру' : 'Cash to courier'}</div>
-                </div>
-                <span className="text-2xl">💵</span>
-              </label>
-              <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                <input type="radio" name="deposit" checked={depositType === 'passport'} onChange={() => setDepositType('passport')} className="w-5 h-5 text-orange-500" />
-                <div className="flex-1">
-                  <div className="font-medium">{t('checkout_deposit_passport', language)}</div>
-                  <div className="text-sm text-gray-500">{language === 'ru' ? 'Фото сделает курьер' : 'Courier will take photo'}</div>
-                </div>
-                <span className="text-2xl">🪪</span>
-              </label>
-            </div>
-          )}
+          ))}
         </div>
+      </div>
 
-        {/* Promo Code */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">{t('checkout_promo_code', language)}</label>
-          <input type="text" value={promoCode} onChange={e => setPromoCode(e.target.value.toUpperCase())} placeholder={language === 'ru' ? 'Введите промокод' : 'Enter promo code'} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500" />
-          <p className="text-xs text-gray-500 mt-2">{language === 'ru' ? 'Скидка применяется только к кальяну' : 'Discount applies to hookah only'}</p>
+      {/* Promo code */}
+      <div className="form-group">
+        <label className="form-label">{t('checkout_promo_code', language)}</label>
+        <div className="flex" style={{ gap: 8 }}>
+          <input
+            className="form-input"
+            style={{ flex: 1 }}
+            value={promoCode}
+            onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+            placeholder={t('checkout_promo_placeholder', language)}
+          />
+          <button
+            style={{
+              padding: '12px 16px',
+              background: 'var(--green)',
+              color: 'white',
+              border: 'none',
+              borderRadius: 'var(--radius-sm)',
+              fontFamily: "'Nunito', sans-serif",
+              fontSize: 13,
+              fontWeight: 800,
+              cursor: 'pointer',
+            }}
+          >
+            OK
+          </button>
         </div>
+      </div>
 
-        {/* Rules */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input type="checkbox" checked={rulesAccepted} onChange={e => setRulesAccepted(e.target.checked)} className="w-5 h-5 rounded text-orange-500" />
-            <span>{t('checkout_rules', language)}{' '}<a href="#" className="text-orange-500 underline">{language === 'ru' ? 'Читать правила' : 'Read rules'}</a></span>
-          </label>
+      {/* Rules checkbox */}
+      <div
+        className="flex items-start"
+        style={{ gap: 10, margin: '16px 0', cursor: 'pointer' }}
+        onClick={() => setRulesAccepted(!rulesAccepted)}
+      >
+        <div
+          style={{
+            width: 22,
+            height: 22,
+            border: `2px solid var(--orange)`,
+            borderRadius: 6,
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: rulesAccepted ? 'var(--orange)' : 'transparent',
+            color: 'white',
+            fontSize: 14,
+            fontWeight: 800,
+          }}
+        >
+          {rulesAccepted ? '✓' : ''}
         </div>
+        <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600, lineHeight: 1.4 }}>
+          {t('checkout_rules', language)}{' '}
+          <span style={{ color: 'var(--orange)', textDecoration: 'underline' }}>
+            {t('checkout_rules_link', language)}
+          </span>
+        </span>
+      </div>
 
-        {/* Submit */}
-        <button type="submit" disabled={!rulesAccepted || isSubmitting} className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold text-lg py-4 rounded-xl transition-colors">
-          {isSubmitting
-            ? (language === 'ru' ? 'Оформляем...' : 'Placing order...')
-            : `${t('checkout_place_order', language)} — ${totalPrice}₾`
-          }
-        </button>
-      </form>
+      {/* Submit button */}
+      <button
+        className="btn-primary"
+        disabled={!rulesAccepted || isSubmitting || !address || !phone}
+        onClick={handleSubmit}
+      >
+        {isSubmitting
+          ? (language === 'ru' ? 'Оформляем...' : 'Placing order...')
+          : `${t('checkout_place_order', language)} • ${totalPrice}₾`}
+      </button>
     </div>
   );
 }

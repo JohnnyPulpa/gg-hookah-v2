@@ -1,19 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguageContext } from '../contexts/LanguageContext';
+import { t } from '../utils/translations';
 import { getOrders, OrderData } from '../api/orders';
-
-const STATUS_LABELS: Record<string, { ru: string; en: string; color: string }> = {
-  NEW: { ru: 'Новый', en: 'New', color: 'bg-blue-100 text-blue-700' },
-  CONFIRMED: { ru: 'Подтверждён', en: 'Confirmed', color: 'bg-indigo-100 text-indigo-700' },
-  ON_THE_WAY: { ru: 'В пути', en: 'On the way', color: 'bg-yellow-100 text-yellow-700' },
-  DELIVERED: { ru: 'Доставлен', en: 'Delivered', color: 'bg-green-100 text-green-700' },
-  SESSION_ACTIVE: { ru: 'Сессия активна', en: 'Session active', color: 'bg-green-100 text-green-700' },
-  SESSION_ENDING: { ru: 'Сессия заканчивается', en: 'Session ending', color: 'bg-orange-100 text-orange-700' },
-  WAITING_FOR_PICKUP: { ru: 'Ожидает забора', en: 'Waiting for pickup', color: 'bg-purple-100 text-purple-700' },
-  COMPLETED: { ru: 'Завершён', en: 'Completed', color: 'bg-gray-100 text-gray-600' },
-  CANCELED: { ru: 'Отменён', en: 'Canceled', color: 'bg-red-100 text-red-600' },
-};
 
 function SessionTimer({ endsAt }: { endsAt: string }) {
   const [remaining, setRemaining] = useState('');
@@ -22,13 +11,13 @@ function SessionTimer({ endsAt }: { endsAt: string }) {
     const update = () => {
       const diff = new Date(endsAt).getTime() - Date.now();
       if (diff <= 0) {
-        setRemaining('00:00');
+        setRemaining('0:00:00');
         return;
       }
       const h = Math.floor(diff / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
       const s = Math.floor((diff % 60000) / 1000);
-      setRemaining(h > 0 ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`);
+      setRemaining(`${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`);
     };
     update();
     const interval = setInterval(update, 1000);
@@ -36,66 +25,38 @@ function SessionTimer({ endsAt }: { endsAt: string }) {
   }, [endsAt]);
 
   return (
-    <div className="text-center py-3">
-      <div className="text-4xl font-mono font-bold text-orange-500">{remaining}</div>
-      <div className="text-sm text-gray-500 mt-1">⏱</div>
+    <div
+      style={{
+        margin: '12px 0',
+        background: 'linear-gradient(135deg, rgba(46,125,50,0.08), rgba(46,125,50,0.03))',
+        border: '1.5px solid rgba(46,125,50,0.2)',
+        borderRadius: 'var(--radius-sm)',
+        padding: 12,
+        textAlign: 'center',
+      }}
+    >
+      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--green)', textTransform: 'uppercase', letterSpacing: 1 }}>
+        {/* Will be filled by parent */}
+      </div>
+      <div style={{ fontSize: 32, fontWeight: 900, color: 'var(--green-dark)', fontVariantNumeric: 'tabular-nums' }}>
+        {remaining}
+      </div>
     </div>
   );
 }
 
-function OrderCard({ order, language, isActive }: { order: OrderData; language: string; isActive: boolean }) {
-  const status = STATUS_LABELS[order.status] || { ru: order.status, en: order.status, color: 'bg-gray-100 text-gray-600' };
-  const showTimer = isActive && order.session_ends_at && ['SESSION_ACTIVE', 'SESSION_ENDING'].includes(order.status);
-
-  return (
-    <div className={`bg-white rounded-xl shadow-sm border ${isActive ? 'border-orange-300' : 'border-gray-200'} p-4 space-y-3`}>
-      {/* Status + date */}
-      <div className="flex items-center justify-between">
-        <span className={`text-xs font-semibold px-2 py-1 rounded ${status.color}`}>
-          {language === 'ru' ? status.ru : status.en}
-        </span>
-        <span className="text-xs text-gray-400">
-          {new Date(order.created_at).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-        </span>
-      </div>
-
-      {/* Timer */}
-      {showTimer && <SessionTimer endsAt={order.session_ends_at!} />}
-
-      {/* Mix info */}
-      <div className="flex items-center gap-3">
-        {order.mix_image && <img src={order.mix_image} alt="" className="w-12 h-12 rounded-lg object-cover" />}
-        <div>
-          <div className="font-bold">{order.mix_name}</div>
-          <div className="text-sm text-gray-500">{order.mix_flavors}</div>
-        </div>
-      </div>
-
-      {/* Items */}
-      {order.items.filter(i => i.type === 'drink').length > 0 && (
-        <div className="text-sm text-gray-600">
-          {order.items.filter(i => i.type === 'drink').map((item, idx) => (
-            <span key={idx}>{item.name} ×{item.quantity}{idx < order.items.filter(i => i.type === 'drink').length - 1 ? ', ' : ''}</span>
-          ))}
-        </div>
-      )}
-
-      {/* Total + deposit */}
-      <div className="flex items-center justify-between">
-        <span className="font-bold text-lg text-orange-500">{order.total}₾</span>
-        <span className="text-xs px-2 py-1 rounded bg-gray-100">
-          {order.deposit_type === 'cash' ? '💵 100₾' : order.deposit_type === 'passport' ? '🪪' : '✓'}
-        </span>
-      </div>
-
-      {/* Promised time */}
-      {isActive && order.promised_eta_text && (
-        <div className="text-sm text-gray-600">
-          ⏰ {order.promised_eta_text}
-        </div>
-      )}
-    </div>
-  );
+function getStatusStyle(status: string): { bg: string; color: string } {
+  switch (status) {
+    case 'NEW': return { bg: '#FFF3E0', color: 'var(--orange-dark)' };
+    case 'CONFIRMED':
+    case 'ON_THE_WAY':
+    case 'DELIVERED': return { bg: '#FFF3E0', color: 'var(--orange-dark)' };
+    case 'SESSION_ACTIVE':
+    case 'SESSION_ENDING': return { bg: '#E8F5E9', color: 'var(--green-dark)' };
+    case 'COMPLETED': return { bg: '#F5F5F5', color: '#666' };
+    case 'CANCELED': return { bg: '#FFEBEE', color: '#C62828' };
+    default: return { bg: '#F5F5F5', color: '#666' };
+  }
 }
 
 export default function Orders() {
@@ -109,22 +70,16 @@ export default function Orders() {
   const [showSuccess, setShowSuccess] = useState(locationState?.justCreated || false);
 
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 0;
-        const data = await getOrders(telegramId);
+    const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 0;
+    getOrders(telegramId)
+      .then((data) => {
         setActive(data.active);
         setHistory(data.history);
-      } catch (err) {
-        console.error('Failed to fetch orders:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchOrders();
+      })
+      .catch((err) => console.error('Failed to fetch orders:', err))
+      .finally(() => setLoading(false));
   }, []);
 
-  // Auto-hide success message
   useEffect(() => {
     if (showSuccess) {
       const timer = setTimeout(() => setShowSuccess(false), 5000);
@@ -132,57 +87,308 @@ export default function Orders() {
     }
   }, [showSuccess]);
 
+  const getStatusLabel = (status: string): string => {
+    const key = `status_${status.toLowerCase().replace('_active', '').replace('_ending', '')}` as keyof typeof t;
+    return t(key as any, language) || status;
+  };
+
   if (loading) {
     return (
-      <div className="max-w-2xl mx-auto text-center py-12">
-        <div className="text-4xl mb-4 animate-pulse">🔄</div>
-        <p className="text-gray-500">{language === 'ru' ? 'Загрузка...' : 'Loading...'}</p>
+      <div className="flex flex-col items-center justify-center" style={{ paddingTop: 60 }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>⏳</div>
+        <p style={{ color: 'var(--text-muted)', fontWeight: 600 }}>
+          {language === 'ru' ? 'Загрузка...' : 'Loading...'}
+        </p>
+      </div>
+    );
+  }
+
+  /* ===== ORDER SUCCESS SCREEN ===== */
+  if (showSuccess && !active && history.length === 0) {
+    return (
+      <div
+        className="flex flex-col items-center justify-center text-center"
+        style={{ flex: 1, padding: 20, minHeight: '60vh' }}
+      >
+        <div
+          style={{
+            width: 80,
+            height: 80,
+            background: 'linear-gradient(135deg, var(--green), var(--green-light))',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 40,
+            color: 'white',
+            marginBottom: 16,
+            boxShadow: '0 4px 20px rgba(46,125,50,0.3)',
+          }}
+        >
+          ✓
+        </div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>
+          {t('success_title', language)}
+        </div>
+        <div
+          style={{
+            fontSize: 14,
+            color: 'var(--text-secondary)',
+            fontWeight: 600,
+            marginBottom: 32,
+            whiteSpace: 'pre-line',
+          }}
+        >
+          {t('success_subtitle', language)}
+        </div>
+        <button
+          className="btn-primary"
+          style={{ maxWidth: 280, marginBottom: 12 }}
+          onClick={() => navigate('/')}
+        >
+          {t('success_home', language)}
+        </button>
+        <button
+          className="btn-secondary"
+          style={{ maxWidth: 280 }}
+          onClick={() => window.open('https://t.me/gghookah_support', '_blank')}
+        >
+          {t('success_support', language)}
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <h1 className="text-3xl font-bold text-orange-500 mb-2">
-        {language === 'ru' ? 'Заказы' : 'Orders'}
-      </h1>
-
-      {/* Success message after order creation */}
+    <div className="flex flex-col">
+      {/* Success banner (when there IS an active order) */}
       {showSuccess && (
-        <div className="bg-green-50 border border-green-300 text-green-700 px-4 py-3 rounded-xl">
-          <div className="font-bold">{language === 'ru' ? '✅ Заказ получен!' : '✅ Order received!'}</div>
-          <div className="text-sm mt-1">{language === 'ru' ? 'Мы свяжемся по телефону, чтобы подтвердить детали.' : 'We will call you to confirm details.'}</div>
+        <div
+          style={{
+            background: '#E8F5E9',
+            border: '1.5px solid var(--green)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '10px 14px',
+            marginBottom: 12,
+            fontSize: 13,
+            fontWeight: 700,
+            color: 'var(--green-dark)',
+          }}
+        >
+          ✅ {t('success_title', language)}
         </div>
       )}
 
       {/* Active order */}
       {active && (
-        <div>
-          <h2 className="text-lg font-semibold mb-2">{language === 'ru' ? 'Активный заказ' : 'Active order'}</h2>
-          <OrderCard order={active} language={language} isActive={true} />
-        </div>
+        <>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 800,
+              color: 'var(--orange)',
+              textTransform: 'uppercase',
+              letterSpacing: 1.5,
+              margin: '4px 0 10px',
+            }}
+          >
+            {t('orders_active', language)}
+          </div>
+          <div
+            style={{
+              background: 'var(--bg-card)',
+              borderRadius: 'var(--radius)',
+              padding: 16,
+              boxShadow: 'var(--shadow-card)',
+              border: '2px solid var(--orange)',
+              marginBottom: 16,
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Top gradient bar */}
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 3,
+                background: 'linear-gradient(90deg, var(--orange), var(--green))',
+              }}
+            />
+
+            {/* Header: order id + status */}
+            <div className="flex justify-between items-center" style={{ marginBottom: 10 }}>
+              <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>
+                {language === 'ru' ? 'Заказ' : 'Order'} #{active.id.slice(0, 4)}
+              </span>
+              <span
+                style={{
+                  padding: '4px 12px',
+                  borderRadius: 'var(--radius-full)',
+                  fontSize: 11,
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                  background: getStatusStyle(active.status).bg,
+                  color: getStatusStyle(active.status).color,
+                }}
+              >
+                {getStatusLabel(active.status)}
+              </span>
+            </div>
+
+            {/* Details */}
+            <div className="flex flex-col" style={{ gap: 4, fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}>
+              <span style={{ color: 'var(--text)', fontWeight: 700, fontSize: 15 }}>
+                🌿 {active.mix_name}
+                {active.items.filter((i) => i.type === 'drink').length > 0 &&
+                  ` + 🥤 ×${active.items.filter((i) => i.type === 'drink').reduce((s, i) => s + i.quantity, 0)}`}
+              </span>
+              {active.address && <span>📍 {active.address}</span>}
+              <span>
+                {active.deposit_type === 'cash' ? '💵' : '🪪'}{' '}
+                {language === 'ru' ? 'Залог:' : 'Deposit:'}{' '}
+                {active.deposit_type === 'cash'
+                  ? t('checkout_deposit_cash', language)
+                  : t('checkout_deposit_passport', language)}
+              </span>
+            </div>
+
+            {/* Timer */}
+            {active.session_ends_at &&
+              ['SESSION_ACTIVE', 'SESSION_ENDING'].includes(active.status) && (
+                <>
+                  <SessionTimer endsAt={active.session_ends_at} />
+                  <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, marginTop: -8 }}>
+                    {t('orders_time_left', language)}
+                  </div>
+                </>
+              )}
+
+            {/* Support button */}
+            <div className="flex" style={{ gap: 8, marginTop: 12 }}>
+              <button
+                onClick={() => window.open('https://t.me/gghookah_support', '_blank')}
+                style={{
+                  flex: 1,
+                  padding: 10,
+                  borderRadius: 'var(--radius-sm)',
+                  fontFamily: "'Nunito', sans-serif",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  background: 'transparent',
+                  color: 'var(--orange)',
+                  border: '1.5px solid var(--orange)',
+                  textAlign: 'center',
+                }}
+              >
+                💬 {t('support', language)}
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       {/* History */}
       {history.length > 0 && (
-        <div>
-          <h2 className="text-lg font-semibold mb-2">{language === 'ru' ? 'История' : 'History'}</h2>
-          <div className="space-y-3">
-            {history.map(order => (
-              <OrderCard key={order.id} order={order} language={language} isActive={false} />
-            ))}
+        <>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 800,
+              color: 'var(--orange)',
+              textTransform: 'uppercase',
+              letterSpacing: 1.5,
+              margin: '4px 0 10px',
+            }}
+          >
+            {t('orders_history', language)}
           </div>
-        </div>
+          {history.map((order) => {
+            const sty = getStatusStyle(order.status);
+            const drinkCount = order.items.filter((i) => i.type === 'drink').reduce((s, i) => s + i.quantity, 0);
+            return (
+              <div
+                key={order.id}
+                style={{
+                  background: 'var(--bg-card)',
+                  borderRadius: 'var(--radius)',
+                  padding: '14px 16px',
+                  boxShadow: 'var(--shadow)',
+                  border: '1px solid var(--border)',
+                  marginBottom: 10,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700 }}>
+                    {new Date(order.created_at).toLocaleDateString(language === 'ru' ? 'ru-RU' : 'en-US', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })}{' '}
+                    •{' '}
+                    <span
+                      style={{
+                        padding: '2px 8px',
+                        fontSize: 9,
+                        borderRadius: 'var(--radius-full)',
+                        fontWeight: 800,
+                        textTransform: 'uppercase',
+                        background: sty.bg,
+                        color: sty.color,
+                      }}
+                    >
+                      {getStatusLabel(order.status)}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
+                    🌿 {order.mix_name}
+                    {drinkCount > 0 && ` + 🥤 ×${drinkCount}`}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    {order.total}₾
+                  </div>
+                </div>
+                <button
+                  onClick={() => navigate('/catalog')}
+                  style={{
+                    padding: '8px 14px',
+                    background: 'transparent',
+                    border: '1.5px solid var(--orange)',
+                    color: 'var(--orange)',
+                    borderRadius: 'var(--radius-sm)',
+                    fontFamily: "'Nunito', sans-serif",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t('orders_order_again', language)}
+                </button>
+              </div>
+            );
+          })}
+        </>
       )}
 
       {/* Empty state */}
       {!active && history.length === 0 && !showSuccess && (
-        <div className="text-center py-12">
-          <div className="text-6xl mb-4">🫧</div>
-          <h2 className="text-2xl font-bold mb-2">{language === 'ru' ? 'Пока пусто' : 'No orders yet'}</h2>
-          <p className="text-gray-500 mb-6">{language === 'ru' ? 'Оформите первый заказ!' : 'Place your first order!'}</p>
-          <button onClick={() => navigate('/catalog')} className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors">
-            {language === 'ru' ? 'Заказать кальян' : 'Order hookah'}
+        <div className="flex flex-col items-center justify-center text-center" style={{ paddingTop: 60 }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🫧</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', marginBottom: 8 }}>
+            {language === 'ru' ? 'Пока пусто' : 'No orders yet'}
+          </div>
+          <div style={{ fontSize: 14, color: 'var(--text-secondary)', fontWeight: 600, marginBottom: 24 }}>
+            {language === 'ru' ? 'Оформите первый заказ!' : 'Place your first order!'}
+          </div>
+          <button className="btn-primary" style={{ maxWidth: 280 }} onClick={() => navigate('/catalog')}>
+            {t('home_order_button', language)}
           </button>
         </div>
       )}

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order #{{ order.id_short }} — GG HOOKAH Admin</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; color: #e0e0e0; min-height: 100vh; }
+        .topbar { background: #16213e; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #0f3460; }
+        .topbar .logo { color: #F28C18; font-weight: 700; font-size: 18px; text-decoration: none; }
+        .topbar .user-info { display: flex; align-items: center; gap: 16px; font-size: 13px; color: #8892a4; }
+        .topbar .logout-btn { color: #ff6b6b; text-decoration: none; font-size: 13px; }
+        .layout { display: flex; min-height: calc(100vh - 49px); }
+        .sidebar { width: 220px; background: #16213e; padding: 16px 0; border-right: 1px solid #0f3460; flex-shrink: 0; }
+        .sidebar a { display: block; padding: 10px 24px; color: #8892a4; text-decoration: none; font-size: 14px; transition: all 0.15s; }
+        .sidebar a:hover, .sidebar a.active { color: #F28C18; background: rgba(242, 140, 24, 0.08); }
+        .sidebar a.active { border-left: 3px solid #F28C18; }
+        .main { flex: 1; padding: 24px; max-width: 900px; }
+
+        .back-link { color: #8892a4; text-decoration: none; font-size: 13px; display: inline-block; margin-bottom: 16px; }
+        .back-link:hover { color: #F28C18; }
+
+        .order-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+        .order-header h2 { color: #F28C18; font-size: 22px; }
+        .status-badge { display: inline-block; padding: 4px 14px; border-radius: 12px; font-size: 13px; font-weight: 600; color: white; }
+
+        .block { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+        .block h3 { color: #F28C18; font-size: 15px; margin-bottom: 12px; border-bottom: 1px solid #0f3460; padding-bottom: 8px; }
+        .block-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+        .block-row .label { color: #8892a4; }
+        .block-row .value { color: #e0e0e0; font-weight: 500; }
+        .block-row .value a { color: #F28C18; text-decoration: none; }
+        .block-row .value a:hover { text-decoration: underline; }
+
+        .timer-big { font-size: 28px; font-weight: 700; color: #e74c3c; text-align: center; padding: 12px; }
+        .timer-big.ok { color: #2ecc71; }
+
+        .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+        .action-btn {
+            padding: 10px 20px; border: none; border-radius: 8px; color: white;
+            font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.2s;
+        }
+        .action-btn:hover { opacity: 0.85; }
+
+        .items-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+        .items-table th { text-align: left; padding: 6px 8px; color: #8892a4; border-bottom: 1px solid #0f3460; font-size: 12px; }
+        .items-table td { padding: 6px 8px; border-bottom: 1px solid rgba(15,52,96,0.5); }
+
+        .rebowl-item { background: #0f3460; border-radius: 8px; padding: 10px; margin-top: 8px; font-size: 13px; }
+
+        .confirm-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center;
+        }
+        .confirm-modal.show { display: flex; }
+        .modal-box {
+            background: #16213e; border-radius: 12px; padding: 32px; max-width: 400px; width: 90%; text-align: center;
+        }
+        .modal-box h3 { color: #F28C18; margin-bottom: 12px; }
+        .modal-box p { color: #8892a4; font-size: 14px; margin-bottom: 20px; }
+        .modal-btns { display: flex; gap: 10px; justify-content: center; }
+        .modal-btns button { padding: 10px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px; }
+        .modal-cancel { background: #2c3e50; color: #e0e0e0; }
+        .modal-confirm { background: #e74c3c; color: white; }
+
+        .eta-input { background: #0f3460; border: 1px solid #1a4a7a; color: #e0e0e0; padding: 8px 12px; border-radius: 6px; font-size: 14px; width: 200px; margin-left: 8px; }
+        .admin-note { width: 100%; background: #0f3460; border: 1px solid #1a4a7a; color: #e0e0e0; padding: 8px 12px; border-radius: 6px; font-size: 13px; resize: vertical; min-height: 60px; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <a href="{{ url_for('dashboard') }}" class="logo">🔥 GG HOOKAH Admin</a>
+        <div class="user-info">
+            <span>Admin ID: {{ session.get('admin_id') }}</span>
+            <a href="{{ url_for('auth.logout') }}" class="logout-btn">Logout</a>
+        </div>
+    </div>
+
+    <div class="layout">
+        <nav class="sidebar">
+            <a href="{{ url_for('orders.orders_list') }}" class="active">📋 Orders</a>
+            <a href="#">⏱ Sessions</a>
+            <a href="#">💬 Support</a>
+            <a href="#">👤 Guests</a>
+            <a href="#">🎟 Discounts</a>
+            <a href="#">🏷 Promo Codes</a>
+            <a href="#">📦 Menu</a>
+            <a href="#">⚙️ Settings</a>
+            <a href="#">📊 Logs / System</a>
+        </nav>
+
+        <div class="main">
+            <a href="{{ url_for('orders.orders_list') }}" class="back-link">← Back to Orders</a>
+
+            <div class="order-header">
+                <h2>Order #{{ order.id_short }}</h2>
+                <span class="status-badge" style="background: {{ order.status_color }}">{{ order.status }}</span>
+                {% if order.is_late_order %}
+                    <span class="status-badge" style="background: #e74c3c; font-size: 11px;">LATE ORDER</span>
+                {% endif %}
+            </div>
+
+            <!-- STATUS & TIMING -->
+            <div class="block">
+                <h3>⏱ Status & Timing</h3>
+                <div class="block-row"><span class="label">Created</span><span class="value">{{ order.created_at.strftime('%d.%m %H:%M') if order.created_at else '—' }}</span></div>
+                {% if order.confirmed_at %}<div class="block-row"><span class="label">Confirmed</span><span class="value">{{ order.confirmed_at.strftime('%d.%m %H:%M') }}</span></div>{% endif %}
+                {% if order.departed_at %}<div class="block-row"><span class="label">Departed</span><span class="value">{{ order.departed_at.strftime('%d.%m %H:%M') }}</span></div>{% endif %}
+                {% if order.delivered_at %}<div class="block-row"><span class="label">Delivered</span><span class="value">{{ order.delivered_at.strftime('%d.%m %H:%M') }}</span></div>{% endif %}
+                {% if order.session_started_at %}<div class="block-row"><span class="label">Session started</span><span class="value">{{ order.session_started_at.strftime('%d.%m %H:%M') }}</span></div>{% endif %}
+                {% if order.session_ends_at %}<div class="block-row"><span class="label">Session ends</span><span class="value">{{ order.session_ends_at.strftime('%d.%m %H:%M') }}</span></div>{% endif %}
+                {% if order.promised_eta_text %}<div class="block-row"><span class="label">Promised ETA</span><span class="value">{{ order.promised_eta_text }}</span></div>{% endif %}
+                {% if order.remaining_min is not none %}
+                    <div class="timer-big {{ 'ok' if order.remaining_min > 30 else '' }}">⏱ {{ order.remaining_min }} min remaining</div>
+                {% endif %}
+            </div>
+
+            <!-- DELIVERY & CONTACT -->
+            <div class="block">
+                <h3>📍 Delivery & Contact</h3>
+                <div class="block-row"><span class="label">Phone</span><span class="value"><a href="tel:{{ order.phone }}">{{ order.phone or '—' }}</a></span></div>
+                <div class="block-row"><span class="label">Address</span><span class="value">{{ order.address_text or '—' }}</span></div>
+                {% if order.entrance %}<div class="block-row"><span class="label">Entrance</span><span class="value">{{ order.entrance }}</span></div>{% endif %}
+                {% if order.floor %}<div class="block-row"><span class="label">Floor</span><span class="value">{{ order.floor }}</span></div>{% endif %}
+                {% if order.apartment %}<div class="block-row"><span class="label">Apartment</span><span class="value">{{ order.apartment }}</span></div>{% endif %}
+                {% if order.door_code %}<div class="block-row"><span class="label">Door code</span><span class="value">{{ order.door_code }}</span></div>{% endif %}
+                {% if order.comment %}<div class="block-row"><span class="label">Guest comment</span><span class="value">{{ order.comment }}</span></div>{% endif %}
+                <div class="block-row"><span class="label">Guest</span><span class="value">{{ order.guest_name or '—' }} ({{ order.trust_flag or 'normal' }})</span></div>
+                {% if order.admin_note %}<div class="block-row"><span class="label">Admin note</span><span class="value">{{ order.admin_note }}</span></div>{% endif %}
+            </div>
+
+            <!-- ORDER CONTENTS -->
+            <div class="block">
+                <h3>📦 Order Contents</h3>
+                <div class="block-row"><span class="label">Mix</span><span class="value">{{ order.mix_name or '—' }}{% if order.mix_flavors %} ({{ order.mix_flavors }}){% endif %}</span></div>
+                <div class="block-row"><span class="label">Hookahs</span><span class="value">{{ order.hookah_count }}</span></div>
+                {% if order.drinks %}
+                <table class="items-table">
+                    <thead><tr><th>Drink</th><th>Qty</th><th>Price</th></tr></thead>
+                    <tbody>
+                        {% for item in order.drinks %}
+                        <tr><td>{{ item.item_name }}</td><td>{{ item.quantity }}</td><td>{{ item.item_price }}₾</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
+                {% if order.discount_percent %}<div class="block-row"><span class="label">Discount</span><span class="value">-{{ order.discount_percent }}%</span></div>{% endif %}
+                {% if order.promo_code %}<div class="block-row"><span class="label">Promo</span><span class="value">{{ order.promo_code }} (-{{ order.promo_percent }}%)</span></div>{% endif %}
+            </div>
+
+            <!-- DEPOSIT -->
+            <div class="block">
+                <h3>💰 Deposit</h3>
+                <div class="block-row">
+                    <span class="label">Type</span>
+                    <span class="value">
+                        {% if order.deposit_type == 'passport' %}🪪 Passport{% if order.passport_photo_url %} ✅ On file{% endif %}
+                        {% elif order.deposit_type == 'cash' %}💵 {{ order.deposit_amount_gel or 100 }}₾ Cash
+                        {% else %}—{% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <!-- REBOWLS -->
+            {% if order.rebowls %}
+            <div class="block">
+                <h3>🔄 Rebowl Requests</h3>
+                {% for rb in order.rebowls %}
+                <div class="rebowl-item">
+                    <strong>{{ rb.status }}</strong> — requested {{ rb.requested_at.strftime('%H:%M') if rb.requested_at else '' }}
+                    {% if rb.mix_id %} | Mix change{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- ACTIONS -->
+            {% if actions %}
+            <div class="block">
+                <h3>⚡ Actions</h3>
+                {% if order.status == 'NEW' %}
+                <form method="POST" action="{{ url_for('orders.order_transition', order_id=order.id) }}" style="margin-bottom: 12px;">
+                    <input type="hidden" name="target_status" value="CONFIRMED">
+                    <label style="color: #8892a4; font-size: 13px;">ETA text (optional):
+                        <input type="text" name="promised_eta_text" placeholder="~30 min" class="eta-input">
+                    </label>
+                    <button type="submit" class="action-btn" style="background: #2ecc71; margin-left: 12px;">✅ Confirm</button>
+                </form>
+                {% endif %}
+
+                <div class="actions">
+                    {% for action in actions %}
+                        {% if action.target_status != 'CONFIRMED' or order.status != 'NEW' %}
+                        {% if action.confirm %}
+                            <button class="action-btn" style="background: {{ action.color }}"
+                                onclick="showConfirm('{{ action.target_status }}', '{{ action.label }}')">
+                                {{ action.label }}
+                            </button>
+                        {% else %}
+                            <form method="POST" action="{{ url_for('orders.order_transition', order_id=order.id) }}" style="display:inline;">
+                                <input type="hidden" name="target_status" value="{{ action.target_status }}">
+                                <button type="submit" class="action-btn" style="background: {{ action.color }}">{{ action.label }}</button>
+                            </form>
+                        {% endif %}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div class="confirm-modal" id="confirmModal">
+        <div class="modal-box">
+            <h3>Confirm Action</h3>
+            <p id="confirmText">Are you sure?</p>
+            <div class="modal-btns">
+                <button class="modal-cancel" onclick="hideConfirm()">Cancel</button>
+                <form method="POST" action="{{ url_for('orders.order_transition', order_id=order.id) }}" id="confirmForm">
+                    <input type="hidden" name="target_status" id="confirmTarget">
+                    <button type="submit" class="modal-confirm">Confirm</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showConfirm(target, label) {
+            document.getElementById('confirmTarget').value = target;
+            document.getElementById('confirmText').textContent = 'Are you sure you want to: ' + label + '?';
+            document.getElementById('confirmModal').classList.add('show');
+        }
+        function hideConfirm() {
+            document.getElementById('confirmModal').classList.remove('show');
+        }
+        document.getElementById('confirmModal').addEventListener('click', function(e) {
+            if (e.target === this) hideConfirm();
+        });
+    </script>
+</body>
+</html>

@@ -4,7 +4,7 @@ Spec 6.3: Active orders list with status badges, deposit info, flags.
 Spec 6.4: Order detail with status transitions.
 """
 
-from flask import Blueprint, render_template, jsonify, request, session
+from flask import Blueprint, render_template, jsonify, request, session, redirect
 from sqlalchemy import text
 from admin.auth import login_required
 
@@ -110,8 +110,191 @@ def orders_list():
                            orders=orders,
                            show_all=show_all,
                            status_colors=STATUS_COLORS)
+# --- Allowed transitions per status (spec 2.2 + 6.4.5) ---
+ALLOWED_TRANSITIONS = {
+    'NEW': ['CONFIRMED', 'CANCELED'],
+    'CONFIRMED': ['ON_THE_WAY', 'CANCELED'],
+    'ON_THE_WAY': ['DELIVERED'],
+    'DELIVERED': ['SESSION_ACTIVE'],
+    'SESSION_ACTIVE': ['SESSION_ENDING'],
+    'SESSION_ENDING': ['WAITING_FOR_PICKUP', 'COMPLETED'],
+    'WAITING_FOR_PICKUP': ['COMPLETED'],
+    'COMPLETED': [],
+    'CANCELED': [],
+}
+
+# Button labels per transition
+TRANSITION_LABELS = {
+    'CONFIRMED': '✅ Confirm',
+    'ON_THE_WAY': '🚗 Set On The Way',
+    'DELIVERED': '📦 Mark Delivered',
+    'SESSION_ACTIVE': '⏱ Start Session',
+    'SESSION_ENDING': '⚠️ Force Ending',
+    'WAITING_FOR_PICKUP': '📦 Waiting for Pickup',
+    'COMPLETED': '✅ Mark Completed',
+    'CANCELED': '❌ Cancel Order',
+}
+
+TRANSITION_COLORS = {
+    'CONFIRMED': '#2ecc71',
+    'ON_THE_WAY': '#f39c12',
+    'DELIVERED': '#9b59b6',
+    'SESSION_ACTIVE': '#1abc9c',
+    'SESSION_ENDING': '#e74c3c',
+    'WAITING_FOR_PICKUP': '#e67e22',
+    'COMPLETED': '#7f8c8d',
+    'CANCELED': '#e74c3c',
+}
+
+
 @orders_bp.route('/<order_id>')
 @login_required
 def order_detail(order_id):
-    """Order detail — stub, will be built in M7.4."""
-    return f"<h2>Order detail: {order_id}</h2><p>Coming in M7.4</p><a href='{request.url_root}orders/'>← Back</a>"
+    """Full order detail screen (spec 6.4)."""
+    from admin.app import engine
+
+    query = text("""
+        SELECT
+            o.*,
+            m.name as mix_name,
+            m.flavors as mix_flavors,
+            m.strength, m.coolness, m.sweetness, m.smokiness,
+            g.name as guest_name,
+            g.phone as guest_phone,
+            g.trust_flag,
+            g.passport_photo_url,
+            g.notes as guest_notes
+        FROM orders o
+        LEFT JOIN mixes m ON o.mix_id = m.id
+        LEFT JOIN guests g ON o.guest_id = g.id
+        WHERE o.id = :oid
+    """)
+
+    with engine.connect() as conn:
+        row = conn.execute(query, {'oid': order_id}).mappings().first()
+
+        if not row:
+            return "Order not found", 404
+
+        order = dict(row)
+
+        # Get order items (drinks)
+        items = conn.execute(text("""
+            SELECT oi.*, mi.name as item_name, mi.price_gel as item_price
+            FROM order_items oi
+            LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
+            WHERE oi.order_id = :oid
+        """), {'oid': order_id}).mappings().all()
+        order['drinks'] = [dict(i) for i in items]
+
+        # Get rebowl requests
+        rebowls = conn.execute(text("""
+            SELECT * FROM rebowl_requests
+            WHERE order_id = :oid
+            ORDER BY requested_at DESC
+        """), {'oid': order_id}).mappings().all()
+        order['rebowls'] = [dict(r) for r in rebowls]
+
+    # Compute remaining time
+    if order.get('session_ends_at') and order['status'] in ('SESSION_ACTIVE', 'SESSION_ENDING'):
+        from datetime import datetime, timezone
+        ends = order['session_ends_at']
+        if ends.tzinfo is None:
+            ends = ends.replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
+        remaining = ends - now
+        order['remaining_min'] = max(0, int(remaining.total_seconds() // 60))
+    else:
+        order['remaining_min'] = None
+
+    order['id_short'] = str(order['id'])[:8]
+    order['status_color'] = STATUS_COLORS.get(order['status'], '#7f8c8d')
+
+    # Build available actions
+    transitions = ALLOWED_TRANSITIONS.get(order['status'], [])
+    actions = []
+    for t in transitions:
+        actions.append({
+            'target_status': t,
+            'label': TRANSITION_LABELS.get(t, t),
+            'color': TRANSITION_COLORS.get(t, '#7f8c8d'),
+            'confirm': t in ('CANCELED', 'COMPLETED', 'SESSION_ACTIVE'),
+        })
+
+    return render_template('order_detail.html',
+                           order=order,
+                           actions=actions,
+                           status_colors=STATUS_COLORS)
+
+
+@orders_bp.route('/<order_id>/transition', methods=['POST'])
+@login_required
+def order_transition(order_id):
+    """Change order status (spec 2.2)."""
+    from admin.app import engine
+    from datetime import datetime, timezone
+
+    target = request.form.get('target_status')
+    admin_id = session.get('admin_id')
+
+    if not target:
+        return jsonify({'error': 'Missing target_status'}), 400
+
+    with engine.connect() as conn:
+        # Get current order
+        row = conn.execute(
+            text("SELECT id, status FROM orders WHERE id = :oid"),
+            {'oid': order_id}
+        ).mappings().first()
+
+        if not row:
+            return jsonify({'error': 'Order not found'}), 404
+
+        current = row['status']
+        allowed = ALLOWED_TRANSITIONS.get(current, [])
+
+        if target not in allowed:
+            return jsonify({'error': f'Cannot transition from {current} to {target}'}), 400
+
+        # Build update fields
+        updates = ["status = :target", "updated_at = now()"]
+        params = {'target': target, 'oid': order_id}
+
+        if target == 'CONFIRMED':
+            updates.append("confirmed_at = now()")
+            eta = request.form.get('promised_eta_text', '')
+            if eta:
+                updates.append("promised_eta_text = :eta")
+                params['eta'] = eta
+
+        elif target == 'ON_THE_WAY':
+            updates.append("departed_at = now()")
+
+        elif target == 'DELIVERED':
+            updates.append("delivered_at = now()")
+
+        elif target == 'SESSION_ACTIVE':
+            updates.append("session_started_at = now()")
+            updates.append("session_ends_at = now() + interval '120 minutes'")
+            updates.append("free_extension_used = false")
+
+        elif target == 'CANCELED':
+            updates.append("canceled_at = now()")
+
+        set_clause = ", ".join(updates)
+        conn.execute(text(f"UPDATE orders SET {set_clause} WHERE id = :oid"), params)
+
+        # Audit log
+        conn.execute(text("""
+            INSERT INTO audit_logs (entity_type, entity_id, action, details, admin_telegram_id)
+            VALUES ('order', :oid, :action, :details, :admin_id)
+        """), {
+            'oid': order_id,
+            'action': f'STATUS_{current}_TO_{target}',
+            'details': f'{{"from":"{current}","to":"{target}"}}',
+            'admin_id': admin_id,
+        })
+
+        conn.commit()
+
+    return redirect(request.referrer or url_for('orders.order_detail', order_id=order_id))

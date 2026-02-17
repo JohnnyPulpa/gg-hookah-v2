@@ -40,6 +40,8 @@ app.wsgi_app = PrefixMiddleware(app.wsgi_app)
 # --- Register auth blueprint ---
 from admin.auth import auth_bp, login_required
 app.register_blueprint(auth_bp)
+from admin.routes.orders import orders_bp
+app.register_blueprint(orders_bp)
 
 
 # --- Public routes ---
@@ -65,9 +67,9 @@ def health():
 @app.route("/")
 @login_required
 def dashboard():
-    """Main dashboard — requires login."""
-    admin_id = session.get('admin_id')
-    return render_template('dashboard.html', admin_id=admin_id)
+    """Main dashboard — redirect to orders (main operational view)."""
+    from flask import redirect, url_for
+    return redirect(url_for('orders.orders_list'))
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ from aiogram.types import Message
 from bot.db import get_user_language, get_active_order, ensure_user_exists
 from bot.templates import t
 from bot.keyboards.main import main_keyboard, LABELS
-from bot.config import MINI_APP_URL
+from bot.config import MINI_APP_URL, DOMAIN
 
 router = Router()
 
@@ -72,7 +72,31 @@ async def cmd_language(message: Message) -> None:
         confirm,
         reply_markup=main_keyboard(new_lang, MINI_APP_URL),
     )
+@router.message(Command("admin"))
+async def cmd_admin(message: Message) -> None:
+    """Handle /admin — generate login link for admin panel."""
+    user = message.from_user
+    if not user:
+        return
 
+    # Check if user is admin
+    from admin.auth import is_admin, generate_login_token
+    if not is_admin(user.id):
+        lang = await get_user_language(user.id)
+        deny = "⛔ Доступ запрещён." if lang == "ru" else "⛔ Access denied."
+        await message.answer(deny)
+        return
+
+    # Generate signed token and build URL
+    token = generate_login_token(user.id)
+    url = f"https://{DOMAIN}/admin/auth/login?token={token}"
+
+    await message.answer(
+        f"🔐 Admin Panel\n\n"
+        f"Your login link (valid 5 min):\n{url}\n\n"
+        f"Do not share this link.",
+        disable_web_page_preview=True,
+    )
 
 @router.message(F.text.in_({
     LABELS["my_order"]["ru"],

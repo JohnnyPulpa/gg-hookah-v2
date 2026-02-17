@@ -2,31 +2,73 @@
 GG HOOKAH v2 — Admin Panel
 Port: 5002
 """
+
 import os
-from flask import Flask, jsonify
+from datetime import timedelta
+from flask import Flask, jsonify, render_template, session
 from flask_cors import CORS
 from sqlalchemy import create_engine, text
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://gg_hookah:Benxow-ziqpir-1duqbi@localhost/gg_hookah")
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
-app = Flask(__name__)
-CORS(app)
+# --- Config ---
+DATABASE_URL = os.environ.get(
+    "DATABASE_URL",
+    "postgresql://gg_hookah:password@localhost/gg_hookah"
+)
+SECRET_KEY = os.environ.get("SECRET_KEY", "change-me-in-production")
 
-ADMIN_IDS = [int(x) for x in os.environ.get("ADMIN_IDS", "904970735").split(",")]
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+
+# --- App ---
+app = Flask(__name__)
+app.secret_key = SECRET_KEY
+app.permanent_session_lifetime = timedelta(hours=24)
+CORS(app)
+# --- Prefix middleware (Flask lives behind /admin/ in Nginx) ---
+class PrefixMiddleware:
+    """Make url_for() generate /admin/... paths."""
+    def __init__(self, wsgi_app, prefix='/admin'):
+        self.wsgi_app = wsgi_app
+        self.prefix = prefix
+
+    def __call__(self, environ, start_response):
+        environ['SCRIPT_NAME'] = self.prefix
+        return self.wsgi_app(environ, start_response)
+
+
+app.wsgi_app = PrefixMiddleware(app.wsgi_app)
+
+# --- Register auth blueprint ---
+from admin.auth import auth_bp, login_required
+app.register_blueprint(auth_bp)
+
+
+# --- Public routes ---
 
 @app.route("/health")
 def health():
+    """Health check — no auth required."""
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         db_status = "ok"
     except Exception as e:
         db_status = f"error: {str(e)}"
-    return jsonify({"service": "gg-hookah-admin", "status": "ok" if db_status == "ok" else "degraded", "db": db_status})
+    return jsonify({
+        "service": "gg-hookah-admin",
+        "status": "ok" if db_status == "ok" else "degraded",
+        "db": db_status
+    })
+
+
+# --- Protected routes ---
 
 @app.route("/")
-def index():
-    return jsonify({"service": "gg-hookah-admin", "version": "2.0"})
+@login_required
+def dashboard():
+    """Main dashboard — requires login."""
+    admin_id = session.get('admin_id')
+    return render_template('dashboard.html', admin_id=admin_id)
+
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5002, debug=True)

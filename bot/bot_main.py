@@ -47,6 +47,7 @@ async def main() -> None:
         BotCommand(command="start", description="Start / Restart bot"),
         BotCommand(command="help", description="Help"),
         BotCommand(command="language", description="Switch RU/EN"),
+        BotCommand(command="admin", description="Admin panel login"),
     ])
 
     log.info("Bot starting polling...")

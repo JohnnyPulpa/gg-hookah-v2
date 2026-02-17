@@ -9,7 +9,7 @@ load_dotenv("/etc/gg-hookah/.env")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 ADMIN_IDS = [int(x.strip()) for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip()]
-DOMAIN = os.getenv("DOMAIN", "gghokah.delivery")
+DOMAIN = os.getenv("DOMAIN", "gghookah.delivery")
 
 # Mini App URL (used for WebApp buttons)
 # Until DNS+SSL are ready, use IP-based URL

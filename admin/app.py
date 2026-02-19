@@ -42,6 +42,8 @@ from admin.auth import auth_bp, login_required
 app.register_blueprint(auth_bp)
 from admin.routes.orders import orders_bp
 app.register_blueprint(orders_bp)
+from admin.routes.sessions import sessions_bp
+app.register_blueprint(sessions_bp)
 
 
 # --- Public routes ---

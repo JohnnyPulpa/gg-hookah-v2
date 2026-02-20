@@ -16,6 +16,7 @@ from aiogram.enums import ParseMode
 
 from bot.config import BOT_TOKEN
 from bot.handlers.start import router as start_router
+from bot.notification_server import start_notification_server
 
 # --- Logging ---
 logging.basicConfig(
@@ -49,6 +50,10 @@ async def main() -> None:
         BotCommand(command="language", description="Switch RU/EN"),
         BotCommand(command="admin", description="Admin panel login"),
     ])
+
+    # Start notification HTTP server (runs in background)
+    await start_notification_server(bot)
+    log.info("Notification server ready on :5003")
 
     log.info("Bot starting polling...")
     try:

@@ -4,10 +4,14 @@ Spec 6.5: Sessions list & detail — active hookahs at guests.
 Sessions = orders with status SESSION_ACTIVE / SESSION_ENDING / WAITING_FOR_PICKUP.
 """
 
+import logging
+import requests as http_requests
 from flask import Blueprint, render_template, jsonify, request, session, redirect, url_for
 from sqlalchemy import text
 from admin.auth import login_required
 from datetime import datetime, timezone
+
+log = logging.getLogger("gg-hookah-admin.sessions")
 
 sessions_bp = Blueprint('sessions', __name__, url_prefix='/sessions')
 
@@ -23,6 +27,19 @@ STATUS_COLORS = {
     'SESSION_ENDING': '#e74c3c',
     'WAITING_FOR_PICKUP': '#e67e22',
 }
+
+
+def _notify(event, telegram_id, order_id_short, **extra):
+    """Fire-and-forget notification to bot notification server."""
+    try:
+        http_requests.post("http://127.0.0.1:5003/notify", json={
+            "event": event,
+            "telegram_id": telegram_id,
+            "order_id_short": order_id_short,
+            **extra,
+        }, timeout=2)
+    except Exception:
+        log.debug("Notification send failed for event=%s", event, exc_info=True)
 
 
 def _compute_remaining(session_ends_at, status):
@@ -212,7 +229,7 @@ def session_action(session_id):
 
     with engine.connect() as conn:
         row = conn.execute(
-            text("SELECT id, status, session_ends_at, free_extension_used FROM orders WHERE id = :oid"),
+            text("SELECT id, status, session_ends_at, free_extension_used, telegram_id FROM orders WHERE id = :oid"),
             {'oid': session_id}
         ).mappings().first()
 
@@ -283,6 +300,17 @@ def session_action(session_id):
 
         conn.commit()
 
+    # Send notification (fire-and-forget)
+    tg_id = order.get('telegram_id')
+    id_short = str(session_id)[:8]
+    if tg_id:
+        if action == 'force_ending':
+            _notify('SESSION_ENDING', tg_id, id_short)
+        elif action == 'complete':
+            _notify('ORDER_COMPLETED', tg_id, id_short)
+        elif action == 'free_extend':
+            _notify('FREE_EXTENSION', tg_id, id_short)
+
     return redirect(url_for('sessions.session_detail', session_id=session_id))
 
 
@@ -314,6 +342,12 @@ def rebowl_transition(session_id, rebowl_id):
 
         if not rebowl:
             return jsonify({'error': 'Rebowl request not found'}), 404
+
+        # Get telegram_id for notification
+        order_row = conn.execute(
+            text("SELECT telegram_id FROM orders WHERE id = :oid"),
+            {'oid': session_id}
+        ).mappings().first()
 
         allowed = REBOWL_TRANSITIONS.get(rebowl['status'], [])
         if target not in allowed:
@@ -364,6 +398,15 @@ def rebowl_transition(session_id, rebowl_id):
                    admin_id)
 
         conn.commit()
+
+    # Send notification (fire-and-forget)
+    tg_id = order_row['telegram_id'] if order_row else None
+    id_short = str(session_id)[:8]
+    if tg_id:
+        if target == 'IN_PROGRESS':
+            _notify('REBOWL_IN_PROGRESS', tg_id, id_short)
+        elif target == 'DONE':
+            _notify('REBOWL_DONE', tg_id, id_short)
 
     return redirect(url_for('sessions.session_detail', session_id=session_id))
 

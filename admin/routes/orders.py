@@ -4,9 +4,13 @@ Spec 6.3: Active orders list with status badges, deposit info, flags.
 Spec 6.4: Order detail with status transitions.
 """
 
+import logging
+import requests as http_requests
 from flask import Blueprint, render_template, jsonify, request, session, redirect
 from sqlalchemy import text
 from admin.auth import login_required
+
+log = logging.getLogger("gg-hookah-admin.orders")
 
 orders_bp = Blueprint('orders', __name__, url_prefix='/orders')
 
@@ -227,6 +231,30 @@ def order_detail(order_id):
                            status_colors=STATUS_COLORS)
 
 
+# Map target order status → notification event
+STATUS_TO_EVENT = {
+    'CONFIRMED': 'ORDER_CONFIRMED',
+    'ON_THE_WAY': 'ON_THE_WAY',
+    'DELIVERED': 'DELIVERED',
+    'SESSION_ACTIVE': 'SESSION_STARTED',
+    'COMPLETED': 'ORDER_COMPLETED',
+    'CANCELED': 'ORDER_CANCELED',
+}
+
+
+def _notify(event, telegram_id, order_id_short, **extra):
+    """Fire-and-forget notification to bot notification server."""
+    try:
+        http_requests.post("http://127.0.0.1:5003/notify", json={
+            "event": event,
+            "telegram_id": telegram_id,
+            "order_id_short": order_id_short,
+            **extra,
+        }, timeout=2)
+    except Exception:
+        log.debug("Notification send failed for event=%s", event, exc_info=True)
+
+
 @orders_bp.route('/<order_id>/transition', methods=['POST'])
 @login_required
 def order_transition(order_id):
@@ -243,7 +271,7 @@ def order_transition(order_id):
     with engine.connect() as conn:
         # Get current order
         row = conn.execute(
-            text("SELECT id, status FROM orders WHERE id = :oid"),
+            text("SELECT id, status, telegram_id FROM orders WHERE id = :oid"),
             {'oid': order_id}
         ).mappings().first()
 
@@ -296,5 +324,14 @@ def order_transition(order_id):
         })
 
         conn.commit()
+
+    # Send notification (fire-and-forget)
+    event = STATUS_TO_EVENT.get(target)
+    tg_id = row['telegram_id']
+    if event and tg_id:
+        extra = {}
+        if target == 'CONFIRMED':
+            extra['eta_text'] = request.form.get('promised_eta_text', '')
+        _notify(event, tg_id, str(order_id)[:8], **extra)
 
     return redirect(request.referrer or url_for('orders.order_detail', order_id=order_id))

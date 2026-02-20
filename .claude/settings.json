@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit",
+      "Write",
+      "Read",
+      "Bash(cd *)",
+      "Bash(cat *)",
+      "Bash(grep *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(ls *)",
+      "Bash(find *)",
+      "Bash(git *)",
+      "Bash(npm *)",
+      "Bash(node *)",
+      "Bash(python3 *)",
+      "Bash(pip *)",
+      "Bash(source *)",
+      "Bash(curl *)",
+      "Bash(sudo systemctl *)",
+      "Bash(sudo nginx *)",
+      "Bash(sudo cp *)",
+      "Bash(sudo rm *)",
+      "Bash(sudo chown *)",
+      "Bash(sudo journalctl *)",
+      "Bash(psql *)",
+      "Bash(alembic *)",
+      "Bash(PGPASSWORD*)"
+    ],
+    "deny": [
+      "Read(/etc/gg-hookah/.env)",
+      "Read(.env)",
+      "Read(.env.*)"
+    ]
+  }
+}

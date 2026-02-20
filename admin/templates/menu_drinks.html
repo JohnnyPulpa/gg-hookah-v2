@@ -1,121 +1,74 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GG HOOKAH — Drinks</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #1a1a2e; color: #e0e0e0; min-height: 100vh; }
-        .topbar { background: #16213e; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #0f3460; }
-        .topbar .logo { color: #F28C18; font-weight: 700; font-size: 18px; }
-        .topbar .user-info { display: flex; align-items: center; gap: 16px; font-size: 13px; color: #8892a4; }
-        .topbar .logout-btn { color: #ff6b6b; text-decoration: none; font-size: 13px; }
-        .layout { display: flex; min-height: calc(100vh - 49px); }
-        .sidebar { width: 220px; background: #16213e; padding: 16px 0; border-right: 1px solid #0f3460; flex-shrink: 0; }
-        .sidebar a { display: block; padding: 10px 24px; color: #8892a4; text-decoration: none; font-size: 14px; transition: all 0.15s; }
-        .sidebar a:hover, .sidebar a.active { color: #F28C18; background: rgba(242,140,24,0.08); }
-        .sidebar a.active { border-left: 3px solid #F28C18; }
-        .main { flex: 1; padding: 24px; }
-        .main h2 { color: #F28C18; font-size: 20px; margin-bottom: 16px; }
+{% extends "base.html" %}
+{% block title %}GG HOOKAH — Drinks{% endblock %}
+{% block sidebar_active %}menu{% endblock %}
 
-        .tabs { display: flex; gap: 4px; margin-bottom: 20px; }
-        .tab { padding: 8px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none; color: #8892a4; background: #16213e; border: 1px solid #0f3460; transition: all 0.15s; }
-        .tab:hover { color: #F28C18; }
-        .tab.active { color: #F28C18; background: rgba(242,140,24,0.1); border-color: #F28C18; }
+{% block extra_styles %}
+<style>
+    .tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+    .tab { padding: 8px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none; color: #8892a4; background: #16213e; border: 1px solid #0f3460; transition: all 0.15s; }
+    .tab:hover { color: #F28C18; }
+    .tab.active { color: #F28C18; background: rgba(242,140,24,0.1); border-color: #F28C18; }
 
-        .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-        .btn { display: inline-block; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; color: #fff; text-decoration: none; transition: opacity 0.15s; }
-        .btn:hover { opacity: 0.85; }
-        .btn-orange { background: #F28C18; }
-        .btn-sm { padding: 5px 10px; font-size: 11px; }
-        .btn-green { background: #2ecc71; }
-        .btn-gray { background: #5a6270; }
-        .btn-blue { background: #3498db; }
-        .count-info { font-size: 13px; color: #8892a4; }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .count-info { font-size: 13px; color: #8892a4; }
 
-        table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; padding: 10px 12px; font-size: 12px; color: #8892a4; border-bottom: 1px solid #0f3460; text-transform: uppercase; letter-spacing: 0.5px; }
-        td { padding: 10px 12px; font-size: 14px; border-bottom: 1px solid rgba(15,52,96,0.5); vertical-align: middle; }
-        tr:hover { background: rgba(242,140,24,0.04); }
-        .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; color: #fff; }
-        .inactive-row { opacity: 0.5; }
-        .price-tag { color: #2ecc71; font-weight: 700; }
-    </style>
-</head>
-<body>
-    <div class="topbar">
-        <div class="logo">🔥 GG HOOKAH Admin</div>
-        <div class="user-info">
-            <span>Admin ID: {{ session['admin_id'] }}</span>
-            <a href="{{ url_for('auth.logout') }}" class="logout-btn">Logout</a>
-        </div>
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 10px 12px; font-size: 12px; color: #8892a4; border-bottom: 1px solid #0f3460; text-transform: uppercase; letter-spacing: 0.5px; }
+    td { padding: 10px 12px; font-size: 14px; border-bottom: 1px solid rgba(15,52,96,0.5); vertical-align: middle; }
+    tr:hover { background: rgba(242,140,24,0.04); }
+    .inactive-row { opacity: 0.5; }
+    .price-tag { color: #2ecc71; font-weight: 700; }
+</style>
+{% endblock %}
+
+{% block content %}
+    <h2>📦 Menu Management</h2>
+
+    <div class="tabs">
+        <a href="{{ url_for('menu.mixes_list') }}" class="tab">🪣 Mixes</a>
+        <a href="{{ url_for('menu.drinks_list') }}" class="tab active">🥤 Drinks</a>
     </div>
 
-    <div class="layout">
-        <nav class="sidebar">
-            <a href="{{ url_for('orders.orders_list') }}">📋 Orders</a>
-            <a href="{{ url_for('sessions.sessions_list') }}">⏱ Sessions</a>
-            <a href="#">💬 Support</a>
-            <a href="#">👤 Guests</a>
-            <a href="#">🎟 Discounts</a>
-            <a href="#">🏷 Promo Codes</a>
-            <a href="{{ url_for('menu.mixes_list') }}" class="active">📦 Menu</a>
-            <a href="#">⚙️ Settings</a>
-            <a href="#">📊 Logs / System</a>
-        </nav>
-
-        <div class="main">
-            <h2>📦 Menu Management</h2>
-
-            <div class="tabs">
-                <a href="{{ url_for('menu.mixes_list') }}" class="tab">🪣 Mixes</a>
-                <a href="{{ url_for('menu.drinks_list') }}" class="tab active">🥤 Drinks</a>
-            </div>
-
-            <div class="toolbar">
-                <span class="count-info">{{ drinks|length }} drink{{ 's' if drinks|length != 1 else '' }}</span>
-                <a href="{{ url_for('menu.drink_create') }}" class="btn btn-orange">+ New Drink</a>
-            </div>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Price</th>
-                        <th>Order</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for d in drinks %}
-                    <tr class="{{ 'inactive-row' if not d.is_active else '' }}">
-                        <td>{{ d.name }}</td>
-                        <td><span class="price-tag">{{ d.price_gel }}₾</span></td>
-                        <td style="color: #8892a4; font-size: 12px;">{{ d.sort_order }}</td>
-                        <td>
-                            {% if d.is_active %}
-                                <span class="badge" style="background: #2ecc71;">Active</span>
-                            {% else %}
-                                <span class="badge" style="background: #95a5a6;">Inactive</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div style="display: flex; gap: 4px;">
-                                <a href="{{ url_for('menu.drink_edit', drink_id=d.id) }}" class="btn btn-sm btn-blue">Edit</a>
-                                <form method="POST" action="{{ url_for('menu.drink_toggle_active', drink_id=d.id) }}" style="display:inline;">
-                                    <button class="btn btn-sm {{ 'btn-gray' if d.is_active else 'btn-green' }}" type="submit">
-                                        {{ 'Disable' if d.is_active else 'Enable' }}
-                                    </button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+    <div class="toolbar">
+        <span class="count-info">{{ drinks|length }} drink{{ 's' if drinks|length != 1 else '' }}</span>
+        <a href="{{ url_for('menu.drink_create') }}" class="btn btn-orange">+ New Drink</a>
     </div>
-</body>
-</html>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Order</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in drinks %}
+            <tr class="{{ 'inactive-row' if not d.is_active else '' }}">
+                <td>{{ d.name }}</td>
+                <td><span class="price-tag">{{ d.price_gel }}₾</span></td>
+                <td style="color: #8892a4; font-size: 12px;">{{ d.sort_order }}</td>
+                <td>
+                    {% if d.is_active %}
+                        <span class="badge" style="background: #2ecc71;">Active</span>
+                    {% else %}
+                        <span class="badge" style="background: #95a5a6;">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div style="display: flex; gap: 4px;">
+                        <a href="{{ url_for('menu.drink_edit', drink_id=d.id) }}" class="btn btn-sm btn-blue">Edit</a>
+                        <form method="POST" action="{{ url_for('menu.drink_toggle_active', drink_id=d.id) }}" style="display:inline;">
+                            <button class="btn btn-sm {{ 'btn-gray' if d.is_active else 'btn-green' }}" type="submit">
+                                {{ 'Disable' if d.is_active else 'Enable' }}
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

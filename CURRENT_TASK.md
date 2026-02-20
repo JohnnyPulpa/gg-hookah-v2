@@ -1,29 +1,37 @@
 # CURRENT_TASK.md
 
-## F1.3: Session Timer Cron — DONE ✅
+## F1.4: Users Table Integration + Language Sync — DONE ✅
 
 ### What was done
-1. Created `bot/services/session_timer.py` — asyncio background task (60s interval)
-   - Queries orders: `status='SESSION_ACTIVE' AND session_ends_at <= now() + 30 min`
-   - Transitions to `SESSION_ENDING` with race-condition protection (`WHERE status='SESSION_ACTIVE'` in UPDATE)
-   - Inserts audit log: `AUTO_SESSION_ENDING`, `admin_telegram_id=0` (system)
-   - Sends notification via existing `send_notification()` → resolves `session_ending_before_02` or `session_ending_after_02` based on Tbilisi time
-   - Entire tick wrapped in try/except — one failure doesn't kill the loop
-2. Modified `bot/bot_main.py` — `asyncio.create_task(session_timer_loop(bot))` after notification server start
+1. **Backend (`backend/app.py`)** — added 3 new endpoints:
+   - `GET /api/user/language?telegram_id=X` — returns user's language preference (default: "ru")
+   - `POST /api/user/language` — upserts user language (creates user if missing)
+   - `POST /api/user/ensure` — upserts user record with telegram data
+2. **Mini App (`miniapp/src/api/client.ts`)** — added `getTelegramId()` and `getTelegramUser()` shared helpers
+3. **Mini App (`miniapp/src/api/user.ts`)** — new API module: `getUserLanguage()`, `setUserLanguage()`, `ensureUser()`
+4. **Mini App (`miniapp/src/contexts/LanguageContext.tsx`)** — full server sync:
+   - On mount: calls `ensureUser()` (fire-and-forget) + loads language from server
+   - On toggle: persists to both localStorage and server (fire-and-forget)
+5. **Mini App** — `Checkout.tsx` and `Orders.tsx` now use shared `getTelegramId()` helper
 
 ### Files created
-- `bot/services/session_timer.py`
+- `miniapp/src/api/user.ts`
 
 ### Files modified
-- `bot/bot_main.py`
+- `backend/app.py`
+- `miniapp/src/api/client.ts`
+- `miniapp/src/contexts/LanguageContext.tsx`
+- `miniapp/src/pages/Checkout.tsx`
+- `miniapp/src/pages/Orders.tsx`
 
 ### Verified
-- Bot starts with "Session timer cron started (interval=60s)" in logs ✅
-- Timer ticks every 60 seconds ✅
-- Test: set order to SESSION_ACTIVE with session_ends_at=now()+10min → auto-transitioned to SESSION_ENDING within 60s ✅
-- Audit log entry created with action=AUTO_SESSION_ENDING ✅
-- Notification attempted (gracefully handles missing user) ✅
-- Timer continues running after errors ✅
+- API endpoints tested with curl ✅
+- `GET /api/user/language?telegram_id=111222333` → `{"language":"ru"}` ✅
+- `POST /api/user/language` with `{"telegram_id":111222333,"language":"en"}` → `{"ok":true,"language":"en"}` ✅
+- `POST /api/user/ensure` → `{"ok":true}` ✅
+- `npm run build` — no TypeScript errors ✅
+- Deployed to production ✅
+- API service restarted and active ✅
 
 ## Статус: DONE
 

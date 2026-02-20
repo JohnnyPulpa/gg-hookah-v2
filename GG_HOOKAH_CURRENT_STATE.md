@@ -1,6 +1,6 @@
 # GG HOOKAH v2 — Полная карта проекта
 
-> Обновлено: 2026-02-20 | Коммит: `e698aa9`
+> Обновлено: 2026-02-20 | Коммит: `303dbf2`
 
 ## АРХИТЕКТУРА
 
@@ -170,12 +170,13 @@ miniapp/
     │   ├── index.ts         # Mix, Drink, Order, OrderStatus, DepositType
     │   └── telegram.d.ts    # Telegram WebApp type declarations
     ├── api/
-    │   ├── client.ts        # Axios instance, baseURL: '/api'
+    │   ├── client.ts        # Axios instance, baseURL: '/api', getTelegramId(), getTelegramUser()
     │   ├── mixes.ts         # getAll(), getById(), getFeatured()
     │   ├── drinks.ts        # getAll()
-    │   └── orders.ts        # createOrder(), getOrders()
+    │   ├── orders.ts        # createOrder(), getOrders()
+    │   └── user.ts          # getUserLanguage(), setUserLanguage(), ensureUser()
     ├── contexts/
-    │   └── LanguageContext.tsx  # RU/EN toggle, localStorage persist
+    │   └── LanguageContext.tsx  # RU/EN toggle, localStorage + server sync
     ├── components/
     │   ├── Layout.tsx       # Wrapper + bottom nav (Home/Menu/Orders/Support)
     │   ├── Header.tsx       # Top bar: logo, language toggle
@@ -204,6 +205,9 @@ miniapp/
 | GET | `/api/mixes` | Список активных миксов |
 | GET | `/api/mixes/featured` | Featured микс |
 | GET | `/api/drinks` | Список активных напитков |
+| GET | `/api/user/language?telegram_id=X` | Язык пользователя |
+| POST | `/api/user/language` | Сохранить язык пользователя |
+| POST | `/api/user/ensure` | Upsert пользователя |
 | POST | `/api/orders` | Создать заказ |
 | GET | `/api/orders?telegram_id=X` | Заказы пользователя |
 | POST | `/api/discounts` | Применить скидку |
@@ -297,6 +301,7 @@ CANCELED                                    SESSION_ACTIVE                      
 - F1.1: Admin template inheritance — base.html + extends
 - F1.2: Notification service — aiohttp server on :5003 + admin integration
 - F1.3: Session timer cron — auto SESSION_ENDING за 30 мин до конца + notification
+- F1.4: Users table integration + language sync (Mini App ↔ Bot)
 
 ### Mini App (Frontend) ✅
 - Home page with featured mix
@@ -319,12 +324,14 @@ CANCELED                                    SESSION_ACTIVE                      
 ## Последний коммит
 
 ```
-e698aa9 F1.3: Session timer cron — auto SESSION_ACTIVE → SESSION_ENDING + notification
+303dbf2 F1.4: Users table integration + language sync (Mini App ↔ Bot)
 ```
 
 ## Последние 10 коммитов
 
 ```
+303dbf2 F1.4: Users table integration + language sync (Mini App ↔ Bot)
+8d3c600 Update docs: F1.3 Session timer cron complete
 e698aa9 F1.3: Session timer cron — auto SESSION_ACTIVE → SESSION_ENDING + notification
 c47f089 Add GG_HOOKAH_CURRENT_STATE.md — full project map and current state
 7680be1 Update CURRENT_TASK.md: F1.2 Notification Service complete
@@ -333,11 +340,9 @@ cf28483 F1.1: Admin template inheritance - base.html + extends, B22 sidebar fix
 cfbeac0 M7.6: Menu CRUD - mixes list/create/edit/toggle/featured + drinks
 f7050e4 Add CLAUDE.md with project guidance for Claude Code
 ff6fcac M7.5: Sessions list + detail with timer, rebowl pipeline
-95170cc M7.4: order detail with status transitions, actions, confirm modals
-2a6f76c M7.3: orders list with status badges, deposit, timer, sorting
 ```
 
-Всего коммитов: 26
+Всего коммитов: 28
 
 ---
 
@@ -349,3 +354,4 @@ ff6fcac M7.5: Sessions list + detail with timer, rebowl pipeline
 - Support chat (Spec 5.x) — двусторонний чат бот↔пользователь
 - Discount system (выдача скидок после заказа)
 - Order flow improvements (order_items заполнение)
+- Rebowl request from Mini App

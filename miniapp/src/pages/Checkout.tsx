@@ -4,6 +4,7 @@ import { useLanguageContext } from '../contexts/LanguageContext';
 import { t } from '../utils/translations';
 import { DepositType } from '../types';
 import { createOrder } from '../api/orders';
+import { getTelegramId } from '../api/client';
 
 interface DrinkSelection {
   drink: { id: string; name: string; price: number };
@@ -41,7 +42,7 @@ export default function Checkout() {
     setError('');
 
     try {
-      const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 0;
+      const telegramId = getTelegramId();
       const result = await createOrder({
         telegram_id: telegramId,
         mix_id: selectedMix.id,

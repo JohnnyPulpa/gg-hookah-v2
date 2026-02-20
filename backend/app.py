@@ -139,8 +139,78 @@ if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5001, debug=True)
 
 
-# ─── POST /api/orders ─────────────────────────────────────────
+# ─── User / Language endpoints ────────────────────────────────
 from flask import request
+
+
+@app.route("/api/user/language", methods=["GET"])
+def get_user_language():
+    telegram_id = request.args.get("telegram_id")
+    if not telegram_id:
+        return jsonify({"error": "telegram_id required"}), 400
+    try:
+        with engine.connect() as conn:
+            row = conn.execute(
+                text("SELECT language FROM users WHERE telegram_id = :tid"),
+                {"tid": int(telegram_id)},
+            ).fetchone()
+        lang = row[0] if row else "ru"
+        return jsonify({"language": lang})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/user/language", methods=["POST"])
+def set_user_language():
+    data = request.get_json()
+    if not data or not data.get("telegram_id"):
+        return jsonify({"error": "telegram_id required"}), 400
+    telegram_id = data["telegram_id"]
+    language = data.get("language", "ru")
+    if language not in ("ru", "en"):
+        language = "ru"
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                INSERT INTO users (telegram_id, language)
+                VALUES (:tid, :lang)
+                ON CONFLICT (telegram_id) DO UPDATE
+                SET language = :lang, updated_at = now()
+            """), {"tid": int(telegram_id), "lang": language})
+            conn.commit()
+        return jsonify({"ok": True, "language": language})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/user/ensure", methods=["POST"])
+def ensure_user():
+    data = request.get_json()
+    if not data or not data.get("telegram_id"):
+        return jsonify({"error": "telegram_id required"}), 400
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("""
+                INSERT INTO users (telegram_id, first_name, last_name, username, language)
+                VALUES (:tid, :fn, :ln, :un, 'ru')
+                ON CONFLICT (telegram_id) DO UPDATE
+                SET first_name = COALESCE(NULLIF(:fn, ''), users.first_name),
+                    last_name = COALESCE(NULLIF(:ln, ''), users.last_name),
+                    username = COALESCE(NULLIF(:un, ''), users.username),
+                    updated_at = now()
+            """), {
+                "tid": int(data["telegram_id"]),
+                "fn": data.get("first_name", ""),
+                "ln": data.get("last_name", ""),
+                "un": data.get("username", ""),
+            })
+            conn.commit()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ─── POST /api/orders ─────────────────────────────────────────
 from datetime import datetime, time as dtime
 import pytz
 

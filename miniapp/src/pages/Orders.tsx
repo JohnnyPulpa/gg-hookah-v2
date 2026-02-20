@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguageContext } from '../contexts/LanguageContext';
 import { t } from '../utils/translations';
 import { getOrders, OrderData } from '../api/orders';
+import { getTelegramId } from '../api/client';
 
 function SessionTimer({ endsAt }: { endsAt: string }) {
   const [remaining, setRemaining] = useState('');
@@ -70,7 +71,7 @@ export default function Orders() {
   const [showSuccess, setShowSuccess] = useState(locationState?.justCreated || false);
 
   useEffect(() => {
-    const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 0;
+    const telegramId = getTelegramId();
     getOrders(telegramId)
       .then((data) => {
         setActive(data.active);

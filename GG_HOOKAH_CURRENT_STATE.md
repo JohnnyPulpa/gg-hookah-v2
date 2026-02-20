@@ -1,6 +1,6 @@
 # GG HOOKAH v2 — Полная карта проекта
 
-> Обновлено: 2026-02-20 | Коммит: `7680be1`
+> Обновлено: 2026-02-20 | Коммит: `e698aa9`
 
 ## АРХИТЕКТУРА
 
@@ -148,7 +148,8 @@ bot/
 ├── middleware/               # (пусто)
 └── services/
     ├── __init__.py
-    └── notifications.py     # send_notification() — event→template, format, send
+    ├── notifications.py     # send_notification() — event→template, format, send
+    └── session_timer.py     # session_timer_loop() — auto SESSION_ENDING cron (60s)
 ```
 
 ### `miniapp/` — React Frontend (React 19 + TypeScript + Vite + Tailwind)
@@ -295,6 +296,7 @@ CANCELED                                    SESSION_ACTIVE                      
 ### Feature 1: Polish & Notifications ✅
 - F1.1: Admin template inheritance — base.html + extends
 - F1.2: Notification service — aiohttp server on :5003 + admin integration
+- F1.3: Session timer cron — auto SESSION_ENDING за 30 мин до конца + notification
 
 ### Mini App (Frontend) ✅
 - Home page with featured mix
@@ -317,12 +319,14 @@ CANCELED                                    SESSION_ACTIVE                      
 ## Последний коммит
 
 ```
-7680be1 Update CURRENT_TASK.md: F1.2 Notification Service complete
+e698aa9 F1.3: Session timer cron — auto SESSION_ACTIVE → SESSION_ENDING + notification
 ```
 
 ## Последние 10 коммитов
 
 ```
+e698aa9 F1.3: Session timer cron — auto SESSION_ACTIVE → SESSION_ENDING + notification
+c47f089 Add GG_HOOKAH_CURRENT_STATE.md — full project map and current state
 7680be1 Update CURRENT_TASK.md: F1.2 Notification Service complete
 cdcfabb F1.2: Notification service (Admin → Bot → User) + Claude Code config
 cf28483 F1.1: Admin template inheritance - base.html + extends, B22 sidebar fix
@@ -331,20 +335,17 @@ f7050e4 Add CLAUDE.md with project guidance for Claude Code
 ff6fcac M7.5: Sessions list + detail with timer, rebowl pipeline
 95170cc M7.4: order detail with status transitions, actions, confirm modals
 2a6f76c M7.3: orders list with status badges, deposit, timer, sorting
-5242b5a M7.1-M7.2: admin auth via bot + base layout with sidebar
-8c8f6e7 update nginx config with SSL
 ```
 
-Всего коммитов: 24
+Всего коммитов: 26
 
 ---
 
 ## СЛЕДУЮЩИЙ ЧАТ — ПЛАН
 
-Следующая задача: **F1.3** (по roadmap — уточнить у пользователя)
+Следующая задача: уточнить у пользователя
 
 Возможные направления:
 - Support chat (Spec 5.x) — двусторонний чат бот↔пользователь
-- Session timer cron (автоматический SESSION_ENDING за 30 мин до конца)
 - Discount system (выдача скидок после заказа)
 - Order flow improvements (order_items заполнение)

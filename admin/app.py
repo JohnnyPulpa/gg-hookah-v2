@@ -44,6 +44,8 @@ from admin.routes.orders import orders_bp
 app.register_blueprint(orders_bp)
 from admin.routes.sessions import sessions_bp
 app.register_blueprint(sessions_bp)
+from admin.routes.menu import menu_bp
+app.register_blueprint(menu_bp)
 
 
 # --- Public routes ---

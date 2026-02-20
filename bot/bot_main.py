@@ -17,6 +17,7 @@ from aiogram.enums import ParseMode
 from bot.config import BOT_TOKEN
 from bot.handlers.start import router as start_router
 from bot.notification_server import start_notification_server
+from bot.services.session_timer import session_timer_loop
 
 # --- Logging ---
 logging.basicConfig(
@@ -54,6 +55,10 @@ async def main() -> None:
     # Start notification HTTP server (runs in background)
     await start_notification_server(bot)
     log.info("Notification server ready on :5003")
+
+    # Start session timer cron (checks every 60s for expiring sessions)
+    asyncio.create_task(session_timer_loop(bot))
+    log.info("Session timer cron started")
 
     log.info("Bot starting polling...")
     try:

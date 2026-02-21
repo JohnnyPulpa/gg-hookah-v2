@@ -149,9 +149,25 @@ TEMPLATES = {
     },
 
     # --- Support ---
+    "support_prompt": {
+        "ru": "💬 Напишите ваше сообщение, и мы ответим в течение 15 минут.",
+        "en": "💬 Type your message and we'll reply within 15 minutes.",
+    },
     "support_received": {
-        "ru": "💬 Сообщение получено. Мы ответим в ближайшее время.",
-        "en": "💬 Message received. We'll reply soon.",
+        "ru": "💬 Мы получили ваше сообщение, ответим в течение 15 минут.",
+        "en": "💬 We received your message, we'll reply within 15 minutes.",
+    },
+    "admin_support_message": {
+        "ru": (
+            "💬 Поддержка от {client_name}\n"
+            "Тип: {thread_label}\n\n"
+            "{text}"
+        ),
+        "en": (
+            "💬 Support from {client_name}\n"
+            "Type: {thread_label}\n\n"
+            "{text}"
+        ),
     },
 
     # --- Admin notifications (client actions) ---

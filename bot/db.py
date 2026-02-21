@@ -206,6 +206,24 @@ async def create_rebowl_request(order_id: str, telegram_id: int, mix_id: str) ->
     return False
 
 
+async def save_support_message(
+    telegram_id: int, text: str, thread_type: str, thread_id: str | None = None
+) -> None:
+    """Save a support message from client to DB."""
+    await execute(
+        """
+        INSERT INTO support_messages (telegram_user_id, text, thread_type, thread_id, direction)
+        VALUES (:tid, :text, :ttype, :thread_id, 'CLIENT_TO_ADMIN')
+        """,
+        {
+            "tid": telegram_id,
+            "text": text,
+            "ttype": thread_type,
+            "thread_id": thread_id,
+        },
+    )
+
+
 async def ensure_user_exists(telegram_id: int, first_name: str = "",
                               last_name: str = "", username: str = "") -> None:
     """Create user record if not exists (upsert)."""

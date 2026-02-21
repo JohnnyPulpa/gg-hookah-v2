@@ -177,14 +177,15 @@ async def btn_my_order(message: Message) -> None:
 async def btn_support(message: Message) -> None:
     """Handle 'Support' persistent button press.
 
-    For now: acknowledge message, store in support_messages (Этап 3).
+    Sends a prompt — the next text message will be caught
+    by the catch-all handler in support.py and saved.
     """
     user = message.from_user
     if not user:
         return
 
     lang = await get_user_language(user.id)
-    await message.answer(t("support_received", lang))
+    await message.answer(t("support_prompt", lang))
 
 
 @router.message(F.text.in_({

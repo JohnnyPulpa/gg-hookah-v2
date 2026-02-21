@@ -18,6 +18,7 @@ from bot.config import BOT_TOKEN
 from bot.handlers.start import router as start_router
 from bot.handlers.order_actions import router as order_actions_router
 from bot.handlers.session_actions import router as session_actions_router
+from bot.handlers.support import router as support_router
 from bot.notification_server import start_notification_server
 from bot.services.session_timer import session_timer_loop
 
@@ -42,10 +43,11 @@ async def main() -> None:
     )
     dp = Dispatcher()
 
-    # Register routers (callback query routers first)
+    # Register routers (callback query routers first, catch-all LAST)
     dp.include_router(order_actions_router)
     dp.include_router(session_actions_router)
     dp.include_router(start_router)
+    dp.include_router(support_router)  # LAST — catch-all for support messages
 
     # Set bot commands menu
     from aiogram.types import BotCommand

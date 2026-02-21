@@ -1,14 +1,14 @@
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useLanguageContext } from '../contexts/LanguageContext';
+import { useCart } from '../contexts/CartContext';
 import { t } from '../utils/translations';
 
 export default function DrinksQuestion() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { language } = useLanguageContext();
-  const selectedMix = location.state?.selectedMix;
+  const cart = useCart();
 
-  if (!selectedMix) {
+  if (cart.totalHookahs === 0) {
     navigate('/catalog');
     return null;
   }
@@ -35,7 +35,7 @@ export default function DrinksQuestion() {
       </div>
       <div className="flex" style={{ gap: 12, width: '100%', maxWidth: 300 }}>
         <button
-          onClick={() => navigate('/drinks', { state: { selectedMix } })}
+          onClick={() => navigate('/drinks')}
           style={{
             flex: 1,
             padding: 14,
@@ -52,7 +52,10 @@ export default function DrinksQuestion() {
           {t('drinks_yes', language)}
         </button>
         <button
-          onClick={() => navigate('/checkout', { state: { selectedMix, selectedDrinks: [] } })}
+          onClick={() => {
+            cart.clearDrinks();
+            navigate('/checkout');
+          }}
           style={{
             flex: 1,
             padding: 14,

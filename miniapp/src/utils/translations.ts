@@ -97,6 +97,13 @@ type TranslationKeys = {
   action_pickup_success: string;
   action_error: string;
 
+  // Cart
+  cart_add: string;
+  cart_next: string;
+  cart_all_busy: string;
+  cart_all_busy_sub: string;
+  cart_max_reached: string;
+
   // Common
   support: string;
   cancel: string;
@@ -191,6 +198,12 @@ const translations: Record<Language, TranslationKeys> = {
     action_pickup_success: 'Запрос принят, скоро будем!',
     action_error: 'Не удалось выполнить действие',
 
+    cart_add: 'Добавить',
+    cart_next: 'Далее',
+    cart_all_busy: 'Все кальяны заняты',
+    cart_all_busy_sub: 'Попробуйте позже',
+    cart_max_reached: 'Максимум достигнут',
+
     support: 'Поддержка',
     cancel: 'Отменить',
     back: 'Назад',
@@ -282,6 +295,12 @@ const translations: Record<Language, TranslationKeys> = {
     action_cancel_success: 'Order canceled',
     action_pickup_success: 'Request received, we\'ll be there soon!',
     action_error: 'Action failed',
+
+    cart_add: 'Add',
+    cart_next: 'Next',
+    cart_all_busy: 'All hookahs are busy',
+    cart_all_busy_sub: 'Please try again later',
+    cart_max_reached: 'Maximum reached',
 
     support: 'Support',
     cancel: 'Cancel',

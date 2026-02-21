@@ -4,7 +4,10 @@ import { t } from '../utils/translations';
 
 interface MixCardProps {
   mix: Mix;
-  onChoose: (mix: Mix) => void;
+  quantity: number;
+  onAdd: (mix: Mix) => void;
+  onRemove: (mixId: string) => void;
+  maxReached: boolean;
 }
 
 // Color themes for mix cards based on name patterns
@@ -36,7 +39,7 @@ function getMixEmoji(name: string): string {
   return '🌿';
 }
 
-export default function MixCard({ mix, onChoose }: MixCardProps) {
+export default function MixCard({ mix, quantity, onAdd, onRemove, maxReached }: MixCardProps) {
   const { language } = useLanguageContext();
 
   const chars = [
@@ -69,7 +72,7 @@ export default function MixCard({ mix, onChoose }: MixCardProps) {
         borderRadius: 'var(--radius)',
         overflow: 'hidden',
         boxShadow: 'var(--shadow)',
-        border: '1px solid var(--border)',
+        border: quantity > 0 ? '2px solid var(--orange)' : '1px solid var(--border)',
         display: 'flex',
         transition: 'transform 0.2s, box-shadow 0.2s',
       }}
@@ -127,7 +130,7 @@ export default function MixCard({ mix, onChoose }: MixCardProps) {
           ))}
         </div>
 
-        {/* Price + Choose button */}
+        {/* Price + Add/Counter */}
         <div
           className="flex items-center justify-between"
           style={{ marginTop: 'auto' }}
@@ -135,22 +138,88 @@ export default function MixCard({ mix, onChoose }: MixCardProps) {
           <span style={{ fontSize: 18, fontWeight: 900, color: 'var(--orange)' }}>
             {mix.price}₾
           </span>
-          <button
-            onClick={() => onChoose(mix)}
-            style={{
-              padding: '8px 20px',
-              background: 'var(--orange)',
-              color: 'white',
-              border: 'none',
-              borderRadius: 'var(--radius-sm)',
-              fontFamily: "'Nunito', sans-serif",
-              fontSize: 13,
-              fontWeight: 800,
-              cursor: 'pointer',
-            }}
-          >
-            {t('catalog_choose', language)}
-          </button>
+
+          {quantity === 0 ? (
+            <button
+              onClick={() => onAdd(mix)}
+              disabled={maxReached}
+              style={{
+                padding: '8px 20px',
+                background: maxReached ? 'var(--text-muted)' : 'var(--orange)',
+                color: 'white',
+                border: 'none',
+                borderRadius: 'var(--radius-sm)',
+                fontFamily: "'Nunito', sans-serif",
+                fontSize: 13,
+                fontWeight: 800,
+                cursor: maxReached ? 'not-allowed' : 'pointer',
+                opacity: maxReached ? 0.5 : 1,
+              }}
+            >
+              {t('cart_add', language)}
+            </button>
+          ) : (
+            <div
+              className="flex items-center"
+              style={{
+                background: 'var(--bg-input)',
+                borderRadius: 'var(--radius-sm)',
+                border: '1.5px solid var(--orange)',
+                overflow: 'hidden',
+              }}
+            >
+              <button
+                onClick={() => onRemove(mix.id)}
+                style={{
+                  width: 36,
+                  height: 36,
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: 'var(--orange)',
+                  cursor: 'pointer',
+                  fontFamily: "'Nunito', sans-serif",
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                −
+              </button>
+              <span
+                style={{
+                  width: 28,
+                  textAlign: 'center',
+                  fontSize: 15,
+                  fontWeight: 800,
+                  color: 'var(--text)',
+                }}
+              >
+                {quantity}
+              </span>
+              <button
+                onClick={() => onAdd(mix)}
+                disabled={maxReached}
+                style={{
+                  width: 36,
+                  height: 36,
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: maxReached ? 'var(--text-muted)' : 'var(--orange)',
+                  cursor: maxReached ? 'not-allowed' : 'pointer',
+                  fontFamily: "'Nunito', sans-serif",
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                +
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

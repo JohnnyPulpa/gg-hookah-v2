@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useLanguageContext } from '../contexts/LanguageContext';
+import { useCart, DrinkSelection } from '../contexts/CartContext';
 import { t } from '../utils/translations';
 import { Drink } from '../types';
 import { drinksApi } from '../api/drinks';
@@ -20,23 +21,24 @@ function getDrinkEmoji(name: string): string {
   return drinkEmojis[name.toLowerCase()] || '🥤';
 }
 
-interface DrinkSelection {
-  drink: Drink;
-  qty: number;
-}
-
 export default function DrinksCatalog() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { language } = useLanguageContext();
-  const selectedMix = location.state?.selectedMix;
+  const cart = useCart();
 
   const [drinks, setDrinks] = useState<Drink[]>([]);
-  const [selections, setSelections] = useState<Record<string, number>>({});
+  const [selections, setSelections] = useState<Record<string, number>>(() => {
+    // Initialize from existing cart drinks
+    const init: Record<string, number> = {};
+    for (const d of cart.drinks) {
+      init[d.drink.id] = d.qty;
+    }
+    return init;
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!selectedMix) {
+    if (cart.totalHookahs === 0) {
       navigate('/catalog');
       return;
     }
@@ -72,10 +74,11 @@ export default function DrinksCatalog() {
         drink: drinks.find((d) => d.id === id)!,
         qty,
       }));
-    navigate('/checkout', { state: { selectedMix, selectedDrinks } });
+    cart.setDrinks(selectedDrinks);
+    navigate('/checkout');
   };
 
-  if (!selectedMix) return null;
+  if (cart.totalHookahs === 0) return null;
 
   if (loading) {
     return (

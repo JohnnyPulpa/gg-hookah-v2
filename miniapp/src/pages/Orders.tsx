@@ -284,11 +284,16 @@ export default function Orders() {
 
             {/* Details */}
             <div className="flex flex-col" style={{ gap: 4, fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}>
-              <span style={{ color: 'var(--text)', fontWeight: 700, fontSize: 15 }}>
-                🌿 {active.mix_name}
-                {active.items.filter((i) => i.type === 'drink').length > 0 &&
-                  ` + 🥤 ×${active.items.filter((i) => i.type === 'drink').reduce((s, i) => s + i.quantity, 0)}`}
-              </span>
+              {active.items.filter((i) => i.type === 'hookah').map((item, idx) => (
+                <span key={idx} style={{ color: 'var(--text)', fontWeight: 700, fontSize: 15 }}>
+                  🌿 {item.name}{item.quantity > 1 ? ` × ${item.quantity}` : ''}
+                </span>
+              ))}
+              {active.items.filter((i) => i.type === 'drink').length > 0 && (
+                <span style={{ color: 'var(--text)', fontWeight: 700, fontSize: 15 }}>
+                  🥤 ×{active.items.filter((i) => i.type === 'drink').reduce((s, i) => s + i.quantity, 0)}
+                </span>
+              )}
               {active.address && <span>📍 {active.address}</span>}
               <span>
                 {active.deposit_type === 'cash' ? '💵' : '🪪'}{' '}
@@ -511,7 +516,11 @@ export default function Orders() {
                     </span>
                   </div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
-                    🌿 {order.mix_name}
+                    {order.items.filter((i) => i.type === 'hookah').map((item, idx) => (
+                      <span key={idx}>
+                        {idx > 0 ? ', ' : ''}🌿 {item.name}{item.quantity > 1 ? ` ×${item.quantity}` : ''}
+                      </span>
+                    ))}
                     {drinkCount > 0 && ` + 🥤 ×${drinkCount}`}
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>

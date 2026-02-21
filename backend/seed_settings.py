@@ -30,6 +30,9 @@ DEFAULTS = [
     ("board_games_available_now", "true", "Board games in stock"),
     ("passport_retention_days", "365", "Days to keep passport photos"),
     ("default_language", "ru", "Default language for new users"),
+    ("total_hookahs", "5", "Total hookah units in inventory"),
+    ("max_hookahs_regular", "3", "Max hookahs per regular order"),
+    ("max_hookahs_event", "5", "Max hookahs per event order"),
 ]
 
 def seed():

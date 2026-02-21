@@ -223,6 +223,34 @@ ACTIVE_STATUSES = (
 )
 
 
+# ─── GET /api/availability ───────────────────────────────────
+@app.route("/api/availability")
+def get_availability():
+    """Return how many hookahs are available for ordering."""
+    try:
+        with engine.connect() as conn:
+            total = int(_get_setting(conn, "total_hookahs", "5"))
+            max_regular = int(_get_setting(conn, "max_hookahs_regular", "3"))
+
+            row = conn.execute(text("""
+                SELECT COALESCE(SUM(hookah_count), 0)
+                FROM orders
+                WHERE status IN :sts
+            """), {"sts": tuple(ACTIVE_STATUSES)}).fetchone()
+            rented = int(row[0])
+
+            available = max(total - rented, 0)
+            max_per_order = min(max_regular, available)
+
+        return jsonify({
+            "available": available,
+            "max_per_order": max_per_order,
+            "total": total,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 def _get_setting(conn, key, default=None):
     """Read a single setting from the settings table."""
     row = conn.execute(
@@ -235,10 +263,9 @@ def _get_setting(conn, key, default=None):
 @app.route("/api/orders", methods=["POST"])
 def create_order():
     """
-    Create a new order (Spec Section 3.1).
-    Expects JSON body with: telegram_id, mix_id, drinks, address_text,
-    entrance, floor, apartment, door_code, phone, comment, deposit_type,
-    promo_code.
+    Create a new order.
+    Accepts items: [{mix_id, quantity}] for multi-hookah orders.
+    Falls back to single mix_id for backward compatibility.
     """
     try:
         data = request.get_json()
@@ -247,12 +274,18 @@ def create_order():
 
         # --- Required fields ---
         telegram_id = data.get("telegram_id")
-        mix_id = data.get("mix_id")
         address_text = data.get("address_text", "").strip()
         phone = data.get("phone", "").strip()
 
-        if not telegram_id or not mix_id or not address_text or not phone:
-            return jsonify({"error": "Missing required fields: telegram_id, mix_id, address_text, phone"}), 400
+        # Support both new items[] format and legacy single mix_id
+        items_input = data.get("items", [])
+        legacy_mix_id = data.get("mix_id")
+
+        if not items_input and legacy_mix_id:
+            items_input = [{"mix_id": legacy_mix_id, "quantity": 1}]
+
+        if not telegram_id or not items_input or not address_text or not phone:
+            return jsonify({"error": "Missing required fields: telegram_id, items/mix_id, address_text, phone"}), 400
 
         # --- Optional fields ---
         drinks = data.get("drinks", [])  # [{drink_id, qty}]
@@ -273,14 +306,46 @@ def create_order():
             drinks_max_qty = int(_get_setting(conn, "drinks_max_total_qty", "8"))
             deposit_amount = int(_get_setting(conn, "deposit_amount", "100"))
             late_cutoff = _get_setting(conn, "late_order_cutoff_time", "01:30")
+            total_hookahs = int(_get_setting(conn, "total_hookahs", "5"))
+            max_regular = int(_get_setting(conn, "max_hookahs_regular", "3"))
 
-            # --- 2. Validate mix exists and active ---
-            mix_row = conn.execute(
-                text("SELECT id, name FROM mixes WHERE id = :mid AND is_active = true"),
-                {"mid": mix_id},
-            ).fetchone()
-            if not mix_row:
-                return jsonify({"error": "Mix not found or inactive"}), 400
+            # --- 2. Validate hookah items ---
+            validated_items = []
+            total_hookah_count = 0
+            for item in items_input:
+                mid = item.get("mix_id")
+                qty = int(item.get("quantity", 1))
+                if qty <= 0:
+                    continue
+                mix_row = conn.execute(
+                    text("SELECT id, name FROM mixes WHERE id = :mid AND is_active = true"),
+                    {"mid": mid},
+                ).fetchone()
+                if not mix_row:
+                    return jsonify({"error": f"Mix not found or inactive: {mid}"}), 400
+                validated_items.append({
+                    "mix_id": str(mix_row[0]),
+                    "mix_name": mix_row[1],
+                    "quantity": qty,
+                })
+                total_hookah_count += qty
+
+            if total_hookah_count == 0:
+                return jsonify({"error": "At least one hookah required"}), 400
+
+            # --- 2b. Check availability ---
+            rented_row = conn.execute(text("""
+                SELECT COALESCE(SUM(hookah_count), 0)
+                FROM orders WHERE status IN :sts
+            """), {"sts": tuple(ACTIVE_STATUSES)}).fetchone()
+            rented = int(rented_row[0])
+            available = max(total_hookahs - rented, 0)
+            max_per_order = min(max_regular, available)
+
+            if total_hookah_count > max_per_order:
+                if available == 0:
+                    return jsonify({"error": "All hookahs are currently busy"}), 400
+                return jsonify({"error": f"Maximum {max_per_order} hookahs available"}), 400
 
             # --- 3. Validate drinks ---
             total_drink_qty = 0
@@ -397,20 +462,25 @@ def create_order():
                 promo_code_input = ""
                 promo_code_record_id = None
 
-            hookah_discounted = base_bowl_price - int(base_bowl_price * applied_percent / 100)
+            # Per-hookah discount, then multiply by quantity
+            unit_discounted = base_bowl_price - int(base_bowl_price * applied_percent / 100)
+            hookah_total = unit_discounted * total_hookah_count
             drinks_total = sum(d["price"] * d["qty"] for d in validated_drinks)
+
+            # Primary mix_id = first item (backward compat for admin/bot)
+            primary_mix_id = validated_items[0]["mix_id"]
 
             # --- 10. Insert order ---
             order_result = conn.execute(
                 text("""
                     INSERT INTO orders (
-                        telegram_id, phone, guest_id, mix_id,
+                        telegram_id, phone, guest_id, mix_id, hookah_count,
                         address_text, entrance, floor, apartment, door_code,
                         comment, deposit_type, deposit_amount_gel,
                         promo_code, promo_percent, discount_percent, discount_id,
                         is_late_order, status
                     ) VALUES (
-                        :tid, :phone, :gid, :mid,
+                        :tid, :phone, :gid, :mid, :hcount,
                         :addr, :ent, :fl, :apt, :dc,
                         :cmt, :dep_type, :dep_amt,
                         :promo, :promo_pct, :disc_pct, :disc_id,
@@ -418,7 +488,8 @@ def create_order():
                     ) RETURNING id, created_at
                 """),
                 {
-                    "tid": telegram_id, "phone": phone, "gid": guest_id, "mid": mix_id,
+                    "tid": telegram_id, "phone": phone, "gid": guest_id,
+                    "mid": primary_mix_id, "hcount": total_hookah_count,
                     "addr": address_text, "ent": entrance, "fl": floor_val, "apt": apartment, "dc": door_code,
                     "cmt": comment, "dep_type": deposit_type, "dep_amt": deposit_amount,
                     "promo": promo_code_input or None, "promo_pct": final_promo_percent or None,
@@ -429,14 +500,17 @@ def create_order():
             order_row = order_result.fetchone()
             order_id = str(order_row[0])
 
-            # --- 11. Insert order_items: hookah ---
-            conn.execute(
-                text("""
-                    INSERT INTO order_items (order_id, item_type, mix_id, quantity, unit_price_gel, total_price_gel)
-                    VALUES (:oid, 'hookah', :mid, 1, :price, :total)
-                """),
-                {"oid": order_id, "mid": mix_id, "price": base_bowl_price, "total": hookah_discounted},
-            )
+            # --- 11. Insert order_items: hookahs ---
+            for item in validated_items:
+                item_total = unit_discounted * item["quantity"]
+                conn.execute(
+                    text("""
+                        INSERT INTO order_items (order_id, item_type, mix_id, quantity, unit_price_gel, total_price_gel)
+                        VALUES (:oid, 'hookah', :mid, :qty, :price, :total)
+                    """),
+                    {"oid": order_id, "mid": item["mix_id"], "qty": item["quantity"],
+                     "price": base_bowl_price, "total": item_total},
+                )
 
             # --- 12. Insert order_items: drinks ---
             for d in validated_drinks:
@@ -475,9 +549,9 @@ def create_order():
             return jsonify({
                 "order_id": order_id,
                 "status": "NEW",
-                "hookah_price": hookah_discounted,
+                "hookah_price": hookah_total,
                 "drinks_total": drinks_total,
-                "total": hookah_discounted + drinks_total,
+                "total": hookah_total + drinks_total,
                 "discount_applied": applied_percent,
                 "is_late_order": is_late,
             }), 201

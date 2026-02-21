@@ -5,9 +5,14 @@ interface DrinkItem {
   qty: number;
 }
 
+interface HookahItem {
+  mix_id: string;
+  quantity: number;
+}
+
 interface CreateOrderPayload {
   telegram_id: number;
-  mix_id: string;
+  items: HookahItem[];
   drinks: DrinkItem[];
   address_text: string;
   entrance?: string;
@@ -28,6 +33,17 @@ interface CreateOrderResponse {
   total: number;
   discount_applied: number;
   is_late_order: boolean;
+}
+
+export interface AvailabilityResponse {
+  available: number;
+  max_per_order: number;
+  total: number;
+}
+
+export async function getAvailability(): Promise<AvailabilityResponse> {
+  const { data } = await api.get('/availability');
+  return data;
 }
 
 interface OrderItem {

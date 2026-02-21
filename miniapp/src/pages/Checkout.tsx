@@ -1,23 +1,16 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useLanguageContext } from '../contexts/LanguageContext';
+import { useCart } from '../contexts/CartContext';
 import { t } from '../utils/translations';
 import { DepositType } from '../types';
 import { createOrder } from '../api/orders';
 import { getTelegramId } from '../api/client';
 
-interface DrinkSelection {
-  drink: { id: string; name: string; price: number };
-  qty: number;
-}
-
 export default function Checkout() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { language } = useLanguageContext();
-
-  const selectedMix = location.state?.selectedMix;
-  const selectedDrinks: DrinkSelection[] = location.state?.selectedDrinks || [];
+  const cart = useCart();
 
   const [address, setAddress] = useState('');
   const [entrance, setEntrance] = useState('');
@@ -32,12 +25,12 @@ export default function Checkout() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const hookahPrice = selectedMix?.price || 70;
-  const drinksTotal = selectedDrinks.reduce((sum: number, s: DrinkSelection) => sum + s.drink.price * s.qty, 0);
-  const totalPrice = hookahPrice + drinksTotal;
+  const hookahTotal = cart.totalPrice;
+  const drinksTotal = cart.drinks.reduce((sum, s) => sum + s.drink.price * s.qty, 0);
+  const totalPrice = hookahTotal + drinksTotal;
 
   const handleSubmit = async () => {
-    if (!rulesAccepted || isSubmitting || !selectedMix) return;
+    if (!rulesAccepted || isSubmitting || cart.totalHookahs === 0) return;
     setIsSubmitting(true);
     setError('');
 
@@ -45,8 +38,8 @@ export default function Checkout() {
       const telegramId = getTelegramId();
       const result = await createOrder({
         telegram_id: telegramId,
-        mix_id: selectedMix.id,
-        drinks: selectedDrinks.map((s: DrinkSelection) => ({ drink_id: s.drink.id, qty: s.qty })),
+        items: cart.items.map((i) => ({ mix_id: i.mix.id, quantity: i.quantity })),
+        drinks: cart.drinks.map((s) => ({ drink_id: s.drink.id, qty: s.qty })),
         address_text: address,
         entrance,
         floor,
@@ -57,6 +50,7 @@ export default function Checkout() {
         deposit_type: depositType,
         promo_code: promoCode || undefined,
       });
+      cart.clearCart();
       navigate('/orders', { state: { justCreated: true, orderId: result.order_id } });
     } catch (err: any) {
       const msg = err.response?.data?.error || (language === 'ru' ? 'Ошибка создания заказа' : 'Failed to create order');
@@ -66,12 +60,12 @@ export default function Checkout() {
     }
   };
 
-  if (!selectedMix) {
+  if (cart.totalHookahs === 0) {
     return (
       <div className="flex flex-col items-center justify-center" style={{ paddingTop: 60 }}>
         <div style={{ fontSize: 48, marginBottom: 12 }}>🤔</div>
         <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', marginBottom: 8 }}>
-          {language === 'ru' ? 'Микс не выбран' : 'No mix selected'}
+          {language === 'ru' ? 'Корзина пуста' : 'Cart is empty'}
         </div>
         <button className="btn-primary" style={{ maxWidth: 280 }} onClick={() => navigate('/catalog')}>
           {language === 'ru' ? 'Перейти в каталог' : 'Go to catalog'}
@@ -112,11 +106,15 @@ export default function Checkout() {
         }}
       >
         <div className="section-label">{t('checkout_your_order', language)}</div>
-        <div className="flex justify-between" style={{ padding: '6px 0', fontSize: 14 }}>
-          <span style={{ color: 'var(--text)', fontWeight: 600 }}>🌿 {selectedMix.name}</span>
-          <span style={{ color: 'var(--text)', fontWeight: 700 }}>{hookahPrice}₾</span>
-        </div>
-        {selectedDrinks.map((s: DrinkSelection) => (
+        {cart.items.map((item) => (
+          <div key={item.mix.id} className="flex justify-between" style={{ padding: '6px 0', fontSize: 14 }}>
+            <span style={{ color: 'var(--text)', fontWeight: 600 }}>
+              🌿 {item.mix.name} {item.quantity > 1 ? `× ${item.quantity}` : ''}
+            </span>
+            <span style={{ color: 'var(--text)', fontWeight: 700 }}>{item.mix.price * item.quantity}₾</span>
+          </div>
+        ))}
+        {cart.drinks.map((s) => (
           <div key={s.drink.id} className="flex justify-between" style={{ padding: '6px 0', fontSize: 14 }}>
             <span style={{ color: 'var(--text)', fontWeight: 600 }}>
               🥤 {s.drink.name} × {s.qty}
@@ -282,7 +280,7 @@ export default function Checkout() {
       >
         {isSubmitting
           ? (language === 'ru' ? 'Оформляем...' : 'Placing order...')
-          : `${t('checkout_place_order', language)} • ${totalPrice}₾`}
+          : `${t('checkout_place_order', language)} · ${totalPrice}₾`}
       </button>
     </div>
   );

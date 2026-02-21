@@ -152,7 +152,7 @@ class Order(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     __table_args__ = (
-        CheckConstraint("hookah_count BETWEEN 1 AND 3", name="ck_orders_hookah_count"),
+        CheckConstraint("hookah_count BETWEEN 1 AND 10", name="ck_orders_hookah_count"),
         Index("ix_orders_status", "status"),
         Index("ix_orders_telegram_id", "telegram_id"),
         Index("ix_orders_phone", "phone"),

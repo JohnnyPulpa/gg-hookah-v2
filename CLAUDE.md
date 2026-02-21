@@ -91,7 +91,7 @@ gghookah.delivery/admin    → Admin Panel
 - F1.1 ✅ Admin Template Inheritance
 - F1.2 ✅ Notification Service (Admin → Bot)
 - F1.3 ✅ Session Timer Cron
-- F1.4 🔄 Users table + Language sync
+- F1.4 ✅ Users table + Language sync
 
 ---
 
@@ -400,4 +400,4 @@ gghookah.delivery/admin    → Admin Panel
 
 ---
 
-## Текущая позиция: Фаза 1 завершается → F1.4 в работе
+## Текущая позиция: Фаза 1 завершена ✅ → Следующая: F2.1

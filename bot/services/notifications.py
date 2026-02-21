@@ -7,6 +7,7 @@ import logging
 from aiogram import Bot
 from bot import db
 from bot.templates import t
+from bot.keyboards.main import order_actions_keyboard
 
 log = logging.getLogger("gg-hookah-bot.notifications")
 
@@ -25,6 +26,16 @@ EVENT_TEMPLATE_MAP = {
     "REBOWL_IN_PROGRESS": "rebowl_on_the_way",
     "REBOWL_DONE": "rebowl_done",
     "FREE_EXTENSION": "free_extension_used",
+}
+
+# Map event → order status (for attaching action buttons)
+EVENT_TO_STATUS = {
+    "ORDER_CONFIRMED": "CONFIRMED",
+    "ON_THE_WAY": "ON_THE_WAY",
+    "SESSION_STARTED": "SESSION_ACTIVE",
+    "SESSION_ENDING": "SESSION_ENDING",
+    "SESSION_ENDING_BEFORE_02": "SESSION_ENDING",
+    "SESSION_ENDING_AFTER_02": "SESSION_ENDING",
 }
 
 
@@ -65,8 +76,12 @@ async def send_notification(bot: Bot, event: str, telegram_id: int, data: dict) 
         # Format message
         text = t(template_key, lang, **data)
 
+        # Attach action buttons if applicable
+        status = EVENT_TO_STATUS.get(event)
+        reply_markup = order_actions_keyboard(lang, status) if status else None
+
         # Send
-        await bot.send_message(telegram_id, text)
+        await bot.send_message(telegram_id, text, reply_markup=reply_markup)
         log.info("Notification sent: event=%s telegram_id=%s", event, telegram_id)
 
     except Exception:

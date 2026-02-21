@@ -10,7 +10,7 @@ from aiogram.types import Message
 
 from bot.db import get_user_language, get_active_order, ensure_user_exists
 from bot.templates import t
-from bot.keyboards.main import main_keyboard, LABELS
+from bot.keyboards.main import main_keyboard, order_actions_keyboard, LABELS
 from bot.config import MINI_APP_URL, DOMAIN
 
 router = Router()
@@ -158,7 +158,9 @@ async def btn_my_order(message: Message) -> None:
         timer_label = "Осталось" if lang == "ru" else "Remaining"
         text += f"\n⏱ {timer_label}: {mins} мин" if lang == "ru" else f"\n⏱ {timer_label}: {mins} min"
 
-    await message.answer(text)
+    # Add action buttons based on order status
+    actions_kb = order_actions_keyboard(lang, status)
+    await message.answer(text, reply_markup=actions_kb)
 
 
 @router.message(F.text.in_({

@@ -16,6 +16,7 @@ from aiogram.enums import ParseMode
 
 from bot.config import BOT_TOKEN
 from bot.handlers.start import router as start_router
+from bot.handlers.order_actions import router as order_actions_router
 from bot.notification_server import start_notification_server
 from bot.services.session_timer import session_timer_loop
 
@@ -41,6 +42,7 @@ async def main() -> None:
     dp = Dispatcher()
 
     # Register routers
+    dp.include_router(order_actions_router)  # callback queries first
     dp.include_router(start_router)
 
     # Set bot commands menu

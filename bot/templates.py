@@ -154,6 +154,30 @@ TEMPLATES = {
         "en": "💬 Message received. We'll reply soon.",
     },
 
+    # --- Admin notifications (client actions) ---
+    "admin_client_cancel": {
+        "ru": (
+            "⚠️ Клиент отменил заказ #{order_id_short}\n"
+            "Клиент: {client_name}"
+        ),
+        "en": (
+            "⚠️ Client canceled order #{order_id_short}\n"
+            "Client: {client_name}"
+        ),
+    },
+    "admin_client_ready_pickup": {
+        "ru": (
+            "📦 Клиент готов отдать кальян\n"
+            "Заказ #{order_id_short}\n"
+            "Клиент: {client_name}"
+        ),
+        "en": (
+            "📦 Client ready for pickup\n"
+            "Order #{order_id_short}\n"
+            "Client: {client_name}"
+        ),
+    },
+
     # --- Errors / info ---
     "no_active_order": {
         "ru": "У вас нет активного заказа. Оформите через приложение!",

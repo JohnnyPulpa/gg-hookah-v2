@@ -61,6 +61,72 @@ async def get_active_order(telegram_id: int) -> dict | None:
     return rows[0] if rows else None
 
 
+async def cancel_order(order_id: str, telegram_id: int) -> bool:
+    """Cancel an order (client action). Returns True if successful."""
+    rows = await execute(
+        """
+        UPDATE orders
+        SET status = 'CANCELED', canceled_at = now(), updated_at = now()
+        WHERE id = :oid
+          AND telegram_id = :tid
+          AND status IN ('NEW', 'CONFIRMED', 'ON_THE_WAY')
+        RETURNING id
+        """,
+        {"oid": order_id, "tid": telegram_id},
+    )
+    if rows:
+        await execute(
+            """
+            INSERT INTO audit_logs (entity_type, entity_id, action, details, admin_telegram_id)
+            VALUES ('order', :oid, 'CLIENT_CANCEL', '{"source":"telegram_bot"}', :tid)
+            """,
+            {"oid": order_id, "tid": telegram_id},
+        )
+        return True
+    return False
+
+
+async def set_ready_for_pickup(order_id: str, telegram_id: int) -> bool:
+    """Client signals ready for pickup. Returns True if successful."""
+    rows = await execute(
+        """
+        UPDATE orders
+        SET status = 'WAITING_FOR_PICKUP', pickup_requested_at = now(), updated_at = now()
+        WHERE id = :oid
+          AND telegram_id = :tid
+          AND status IN ('SESSION_ACTIVE', 'SESSION_ENDING')
+        RETURNING id
+        """,
+        {"oid": order_id, "tid": telegram_id},
+    )
+    if rows:
+        await execute(
+            """
+            INSERT INTO audit_logs (entity_type, entity_id, action, details, admin_telegram_id)
+            VALUES ('order', :oid, 'CLIENT_READY_PICKUP', '{"source":"telegram_bot"}', :tid)
+            """,
+            {"oid": order_id, "tid": telegram_id},
+        )
+        return True
+    return False
+
+
+async def get_user_name(telegram_id: int) -> str:
+    """Get user display name for admin notifications."""
+    rows = await execute(
+        "SELECT first_name, username FROM users WHERE telegram_id = :tid LIMIT 1",
+        {"tid": telegram_id},
+    )
+    if rows:
+        name = rows[0].get("first_name", "")
+        username = rows[0].get("username", "")
+        if name:
+            return f"{name} (@{username})" if username else name
+        if username:
+            return f"@{username}"
+    return str(telegram_id)
+
+
 async def ensure_user_exists(telegram_id: int, first_name: str = "",
                               last_name: str = "", username: str = "") -> None:
     """Create user record if not exists (upsert)."""

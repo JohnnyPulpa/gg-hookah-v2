@@ -51,6 +51,32 @@ def main_keyboard(lang: str = "ru", mini_app_url: str | None = None) -> ReplyKey
     )
 
 
+def order_actions_keyboard(lang: str = "ru", status: str = "") -> InlineKeyboardMarkup | None:
+    """Inline action buttons based on current order status.
+
+    Returns None if no actions are available for the given status.
+    """
+    buttons = []
+
+    # Cancel available before delivery
+    if status in ("NEW", "CONFIRMED", "ON_THE_WAY"):
+        cancel_text = "❌ Отменить заказ" if lang == "ru" else "❌ Cancel order"
+        buttons.append([InlineKeyboardButton(
+            text=cancel_text,
+            callback_data="action:cancel",
+        )])
+
+    # Ready for pickup during session
+    if status in ("SESSION_ACTIVE", "SESSION_ENDING"):
+        pickup_text = "📦 Готов отдать кальян" if lang == "ru" else "📦 Ready for pickup"
+        buttons.append([InlineKeyboardButton(
+            text=pickup_text,
+            callback_data="action:ready_pickup",
+        )])
+
+    return InlineKeyboardMarkup(inline_keyboard=buttons) if buttons else None
+
+
 def order_created_inline(lang: str = "ru") -> InlineKeyboardMarkup:
     """Inline buttons after order is created: Support."""
     return InlineKeyboardMarkup(inline_keyboard=[

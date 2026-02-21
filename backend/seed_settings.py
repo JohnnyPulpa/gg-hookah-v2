@@ -33,6 +33,14 @@ DEFAULTS = [
     ("total_hookahs", "5", "Total hookah units in inventory"),
     ("max_hookahs_regular", "3", "Max hookahs per regular order"),
     ("max_hookahs_event", "5", "Max hookahs per event order"),
+    ("event_min_hookahs", "3", "Min hookahs for event order"),
+    ("event_min_advance_hours", "24", "Min hours in advance for event booking"),
+    ("event_prepayment_percent", "50", "Event prepayment percentage"),
+    ("delivery_estimate_min", "30", "Min delivery estimate (minutes)"),
+    ("delivery_estimate_max", "60", "Max delivery estimate (minutes)"),
+    ("delivery_estimate_busy", "90", "Delivery estimate when busy (minutes)"),
+    ("first_order_discount", "15", "First order discount percentage"),
+    ("first_order_promo_code", "WELCOME", "First order promo code"),
 ]
 
 def seed():

@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Settings — GG HOOKAH Admin{% endblock %}
+{% block sidebar_active %}settings{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .flash {
+        padding: 10px 16px; border-radius: 8px; margin-bottom: 16px;
+        font-size: 13px; font-weight: 600;
+    }
+    .flash-success { background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.3); }
+    .flash-info { background: rgba(52, 152, 219, 0.15); color: #3498db; border: 1px solid rgba(52, 152, 219, 0.3); }
+    .flash-error { background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.3); }
+
+    .settings-form { max-width: 800px; }
+
+    .group {
+        background: #16213e; border-radius: 10px; margin-bottom: 16px;
+        overflow: hidden;
+    }
+    .group-header {
+        padding: 14px 20px; display: flex; align-items: center; gap: 10px;
+        cursor: pointer; user-select: none; border-left: 4px solid #555;
+    }
+    .group-header:hover { background: rgba(242, 140, 24, 0.04); }
+    .group-header .g-icon { font-size: 18px; }
+    .group-header .g-name { font-size: 14px; font-weight: 600; color: #e0e0e0; flex: 1; }
+    .group-header .g-count { font-size: 11px; color: #8892a4; }
+    .group-header .g-arrow { color: #8892a4; transition: transform 0.2s; font-size: 12px; }
+    .group.collapsed .g-arrow { transform: rotate(-90deg); }
+    .group.collapsed .group-body { display: none; }
+
+    .group-body { padding: 0 20px 16px; }
+
+    .setting-row {
+        display: flex; align-items: center; gap: 16px;
+        padding: 10px 0; border-bottom: 1px solid rgba(15, 52, 96, 0.5);
+    }
+    .setting-row:last-child { border-bottom: none; }
+
+    .s-info { flex: 1; min-width: 0; }
+    .s-key {
+        font-size: 13px; font-weight: 600; color: #e0e0e0;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+    .s-desc { font-size: 11px; color: #8892a4; margin-top: 2px; }
+
+    .s-input { width: 200px; flex-shrink: 0; }
+    .s-input input[type="text"],
+    .s-input input[type="number"],
+    .s-input input[type="time"] {
+        width: 100%; padding: 8px 12px; border-radius: 6px;
+        border: 1px solid #0f3460; background: #0d1b36; color: #e0e0e0;
+        font-size: 13px; transition: border-color 0.15s;
+    }
+    .s-input input:focus { outline: none; border-color: #F28C18; }
+
+    /* Toggle switch */
+    .toggle { position: relative; display: inline-block; width: 44px; height: 24px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle .slider {
+        position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+        background: #2c3e50; border-radius: 24px; transition: 0.2s;
+    }
+    .toggle .slider:before {
+        position: absolute; content: ""; height: 18px; width: 18px;
+        left: 3px; bottom: 3px; background: #8892a4;
+        border-radius: 50%; transition: 0.2s;
+    }
+    .toggle input:checked + .slider { background: #2ecc71; }
+    .toggle input:checked + .slider:before { transform: translateX(20px); background: #fff; }
+
+    .save-bar {
+        position: sticky; bottom: 0; padding: 16px 0;
+        background: linear-gradient(transparent, #1a1a2e 30%);
+        text-align: center;
+    }
+    .save-bar button {
+        padding: 12px 40px; border: none; border-radius: 8px;
+        background: #F28C18; color: #fff; font-size: 15px; font-weight: 700;
+        cursor: pointer; transition: opacity 0.15s;
+    }
+    .save-bar button:hover { opacity: 0.85; }
+</style>
+{% endblock %}
+
+{% block content %}
+    <h2>Settings</h2>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('settings.settings_save') }}" class="settings-form">
+        {% for group in groups %}
+        <div class="group" id="group-{{ group.id }}">
+            <div class="group-header" style="border-left-color: {{ group.color }}" onclick="toggleGroup('{{ group.id }}')">
+                <span class="g-icon">{{ group.icon }}</span>
+                <span class="g-name">{{ group.name }}</span>
+                <span class="g-count">{{ group.settings|length }}</span>
+                <span class="g-arrow">▼</span>
+            </div>
+            <div class="group-body">
+                {% for s in group.settings %}
+                <div class="setting-row">
+                    <div class="s-info">
+                        <div class="s-key">{{ s.key }}</div>
+                        {% if s.description %}
+                        <div class="s-desc">{{ s.description }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="s-input">
+                        {% if s.input_type == 'boolean' %}
+                            <label class="toggle">
+                                <input type="hidden" name="s__{{ s.key }}" value="false">
+                                <input type="checkbox" name="s__{{ s.key }}" value="true"
+                                    {{ 'checked' if s.value == 'true' else '' }}
+                                    onchange="this.previousElementSibling.disabled = this.checked;">
+                                <span class="slider"></span>
+                            </label>
+                        {% elif s.input_type == 'number' %}
+                            <input type="number" name="s__{{ s.key }}" value="{{ s.value }}" min="0">
+                        {% elif s.input_type == 'time' %}
+                            <input type="time" name="s__{{ s.key }}" value="{{ s.value }}">
+                        {% else %}
+                            <input type="text" name="s__{{ s.key }}" value="{{ s.value }}">
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="save-bar">
+            <button type="submit">💾 Save All Settings</button>
+        </div>
+    </form>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function toggleGroup(id) {
+    document.getElementById('group-' + id).classList.toggle('collapsed');
+}
+</script>
+{% endblock %}

@@ -87,7 +87,7 @@
             <a href="#">🎟 Discounts</a>
             <a href="#">🏷 Promo Codes</a>
             <a href="{{ url_for('menu.mixes_list') }}" class="{% if self.sidebar_active()|trim == 'menu' %}active{% endif %}">📦 Menu</a>
-            <a href="#">⚙️ Settings</a>
+            <a href="{{ url_for('settings.settings_list') }}" class="{% if self.sidebar_active()|trim == 'settings' %}active{% endif %}">⚙️ Settings</a>
             <a href="#">📊 Logs / System</a>
         </nav>
 

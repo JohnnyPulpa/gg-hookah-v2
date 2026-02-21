@@ -48,6 +48,8 @@ from admin.routes.menu import menu_bp
 app.register_blueprint(menu_bp)
 from admin.routes.dashboard import dashboard_bp
 app.register_blueprint(dashboard_bp)
+from admin.routes.settings import settings_bp
+app.register_blueprint(settings_bp)
 
 
 # --- Public routes ---

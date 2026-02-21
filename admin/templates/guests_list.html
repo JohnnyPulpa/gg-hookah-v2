@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Guests — GG HOOKAH Admin{% endblock %}
+{% block sidebar_active %}guests{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .toolbar {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 16px; gap: 12px; flex-wrap: wrap;
+    }
+    .toolbar .count { color: #8892a4; font-size: 14px; }
+
+    .search-box {
+        display: flex; gap: 8px; align-items: center;
+    }
+    .search-box input {
+        padding: 8px 14px; border-radius: 6px; border: 1px solid #0f3460;
+        background: #0d1b36; color: #e0e0e0; font-size: 13px; width: 220px;
+    }
+    .search-box input:focus { outline: none; border-color: #F28C18; }
+    .search-box button {
+        padding: 8px 14px; border: none; border-radius: 6px;
+        background: #F28C18; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+
+    .trust-tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+    .trust-tab {
+        padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+        text-decoration: none; color: #8892a4; background: #16213e;
+        border: 1px solid transparent; transition: all 0.15s;
+    }
+    .trust-tab:hover { color: #e0e0e0; }
+    .trust-tab.active { color: #F28C18; border-color: #F28C18; background: rgba(242, 140, 24, 0.08); }
+
+    .guests-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .guests-table th {
+        text-align: left; padding: 10px 12px; color: #8892a4;
+        border-bottom: 1px solid #0f3460; font-weight: 600; font-size: 12px;
+        text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .guests-table td {
+        padding: 10px 12px; border-bottom: 1px solid rgba(15, 52, 96, 0.5);
+        vertical-align: middle;
+    }
+    .guests-table tr:hover { background: rgba(242, 140, 24, 0.04); }
+    .guests-table tr { cursor: pointer; }
+
+    .trust-badge {
+        display: inline-block; padding: 3px 10px; border-radius: 12px;
+        font-size: 11px; font-weight: 600; color: #fff;
+    }
+    .guest-name { font-weight: 600; color: #e0e0e0; }
+    .guest-phone { color: #8892a4; font-size: 12px; font-family: monospace; }
+    .spent { color: #2ecc71; font-weight: 600; }
+    .date-col { color: #8892a4; font-size: 12px; }
+</style>
+{% endblock %}
+
+{% block content %}
+    <h2>Guests</h2>
+
+    <div class="toolbar">
+        <span class="count">{{ guests|length }} guest(s)</span>
+        <form class="search-box" method="GET" action="{{ url_for('guests.guests_list') }}">
+            <input type="text" name="q" value="{{ search_q }}" placeholder="Search phone or name...">
+            {% if trust_filter != 'all' %}
+            <input type="hidden" name="trust" value="{{ trust_filter }}">
+            {% endif %}
+            <button type="submit">Search</button>
+            {% if search_q %}
+            <a href="{{ url_for('guests.guests_list', trust=trust_filter if trust_filter != 'all' else None) }}"
+               style="color: #8892a4; font-size: 12px; text-decoration: none;">Clear</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <div class="trust-tabs">
+        <a href="{{ url_for('guests.guests_list', q=search_q or None) }}"
+           class="trust-tab {{ 'active' if trust_filter == 'all' else '' }}">All</a>
+        <a href="{{ url_for('guests.guests_list', trust='normal', q=search_q or None) }}"
+           class="trust-tab {{ 'active' if trust_filter == 'normal' else '' }}">🟢 Normal</a>
+        <a href="{{ url_for('guests.guests_list', trust='low', q=search_q or None) }}"
+           class="trust-tab {{ 'active' if trust_filter == 'low' else '' }}">🟡 Low</a>
+        <a href="{{ url_for('guests.guests_list', trust='blacklist', q=search_q or None) }}"
+           class="trust-tab {{ 'active' if trust_filter == 'blacklist' else '' }}">🔴 Blacklist</a>
+    </div>
+
+    {% if guests %}
+    <table class="guests-table">
+        <thead>
+            <tr>
+                <th>Guest</th>
+                <th>Telegram</th>
+                <th>Trust</th>
+                <th>Orders</th>
+                <th>Spent</th>
+                <th>Last Order</th>
+                <th>Passport</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for g in guests %}
+            <tr onclick="window.location='{{ url_for('guests.guest_detail', guest_id=g.id) }}'">
+                <td>
+                    <div class="guest-name">{{ g.name or '—' }}</div>
+                    <div class="guest-phone">{{ g.phone }}</div>
+                </td>
+                <td>{{ g.telegram_id or '—' }}</td>
+                <td>
+                    <span class="trust-badge" style="background: {{ g.trust_color }}">
+                        {{ g.trust_icon }} {{ g.trust_flag }}
+                    </span>
+                </td>
+                <td>{{ g.total_orders }}</td>
+                <td class="spent">{{ g.total_spent }}₾</td>
+                <td class="date-col">
+                    {{ g.last_order_at.strftime('%d.%m.%y') if g.last_order_at else '—' }}
+                </td>
+                <td>{{ '✅' if g.passport_photo_url else '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <div class="icon">👤</div>
+        <p>No guests found{% if search_q %} matching "{{ search_q }}"{% endif %}.</p>
+    </div>
+    {% endif %}
+{% endblock %}

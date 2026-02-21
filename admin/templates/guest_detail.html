@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+{% block title %}Guest {{ guest.name or guest.phone }} — GG HOOKAH Admin{% endblock %}
+{% block sidebar_active %}guests{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .main { max-width: 900px; }
+
+    .flash {
+        padding: 10px 16px; border-radius: 8px; margin-bottom: 16px;
+        font-size: 13px; font-weight: 600;
+    }
+    .flash-success { background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.3); }
+    .flash-info { background: rgba(52, 152, 219, 0.15); color: #3498db; border: 1px solid rgba(52, 152, 219, 0.3); }
+
+    .guest-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+    .guest-header h2 { color: #F28C18; font-size: 22px; margin-bottom: 0; }
+
+    .trust-badge-lg {
+        display: inline-block; padding: 4px 14px; border-radius: 12px;
+        font-size: 13px; font-weight: 600; color: #fff;
+    }
+
+    .block { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    .block h3 { color: #F28C18; font-size: 15px; margin-bottom: 12px; border-bottom: 1px solid #0f3460; padding-bottom: 8px; }
+    .block-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+    .block-row .label { color: #8892a4; }
+    .block-row .value { color: #e0e0e0; font-weight: 500; }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+    .stat-card {
+        background: #16213e; border-radius: 10px; padding: 14px 16px; text-align: center;
+        border-left: 3px solid #555;
+    }
+    .stat-card .s-value { font-size: 22px; font-weight: 700; color: #e0e0e0; }
+    .stat-card .s-label { font-size: 11px; color: #8892a4; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 12px; color: #8892a4; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .form-group input[type="text"],
+    .form-group textarea {
+        width: 100%; padding: 10px 14px; border-radius: 8px;
+        border: 1px solid #0f3460; background: #0d1b36; color: #e0e0e0;
+        font-size: 14px; font-family: inherit;
+    }
+    .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #F28C18; }
+    .form-group textarea { resize: vertical; min-height: 70px; }
+
+    .trust-radios { display: flex; gap: 10px; margin-top: 4px; }
+    .trust-radio {
+        padding: 8px 16px; border-radius: 8px; cursor: pointer;
+        font-size: 13px; font-weight: 600; border: 2px solid transparent;
+        transition: all 0.15s;
+    }
+    .trust-radio input { display: none; }
+    .trust-radio.selected { border-color: #F28C18; }
+
+    .actions-bar { display: flex; gap: 10px; margin-top: 16px; }
+
+    .orders-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .orders-table th {
+        text-align: left; padding: 8px 10px; color: #8892a4;
+        border-bottom: 1px solid #0f3460; font-weight: 600; font-size: 12px;
+        text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .orders-table td {
+        padding: 8px 10px; border-bottom: 1px solid rgba(15, 52, 96, 0.5);
+        vertical-align: middle;
+    }
+    .orders-table tr:hover { background: rgba(242, 140, 24, 0.04); }
+    .orders-table tr { cursor: pointer; }
+    .status-badge {
+        display: inline-block; padding: 2px 8px; border-radius: 10px;
+        font-size: 11px; font-weight: 600; color: #fff;
+    }
+
+    @media (max-width: 700px) {
+        .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+    <a href="{{ url_for('guests.guests_list') }}" class="back-link">← Back to Guests</a>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <div class="guest-header">
+        <h2>{{ guest.name or guest.phone }}</h2>
+        <span class="trust-badge-lg" style="background: {{ guest.trust_color }}">
+            {{ guest.trust_icon }} {{ guest.trust_flag }}
+        </span>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+        <div class="stat-card" style="border-left-color: #3498db;">
+            <div class="s-value">{{ guest.total_orders }}</div>
+            <div class="s-label">Orders</div>
+        </div>
+        <div class="stat-card" style="border-left-color: #2ecc71;">
+            <div class="s-value">{{ guest.total_spent }}₾</div>
+            <div class="s-label">Total Spent</div>
+        </div>
+        <div class="stat-card" style="border-left-color: #9b59b6;">
+            <div class="s-value">{{ guest.total_rebowls }}</div>
+            <div class="s-label">Rebowls</div>
+        </div>
+        <div class="stat-card" style="border-left-color: #F28C18;">
+            <div class="s-value">{{ guest.favorite_mix or '—' }}</div>
+            <div class="s-label">Favorite Mix</div>
+        </div>
+    </div>
+
+    <!-- Guest Info -->
+    <div class="block">
+        <h3>👤 Guest Info</h3>
+        <div class="block-row"><span class="label">Phone</span><span class="value" style="font-family: monospace;">{{ guest.phone }}</span></div>
+        <div class="block-row"><span class="label">Telegram ID</span><span class="value">{{ guest.telegram_id or '—' }}</span></div>
+        <div class="block-row">
+            <span class="label">Passport</span>
+            <span class="value">
+                {% if guest.passport_photo_url %}
+                    ✅ On file ({{ guest.passport_uploaded_at.strftime('%d.%m.%Y') if guest.passport_uploaded_at else '—' }})
+                {% else %}
+                    Not on file
+                {% endif %}
+            </span>
+        </div>
+        <div class="block-row"><span class="label">Member since</span><span class="value">{{ guest.created_at.strftime('%d.%m.%Y') if guest.created_at else '—' }}</span></div>
+        <div class="block-row"><span class="label">Last order</span><span class="value">{{ guest.last_order_at.strftime('%d.%m.%Y %H:%M') if guest.last_order_at else '—' }}</span></div>
+    </div>
+
+    <!-- Edit Form -->
+    <div class="block">
+        <h3>✏️ Edit Guest</h3>
+        <form method="POST" action="{{ url_for('guests.guest_update', guest_id=guest.id) }}">
+            <div class="form-group">
+                <label>Name</label>
+                <input type="text" name="name" value="{{ guest.name or '' }}" placeholder="Guest name...">
+            </div>
+
+            <div class="form-group">
+                <label>Trust Level</label>
+                <div class="trust-radios" id="trustRadios">
+                    {% for tf in trust_flags %}
+                    <label class="trust-radio {{ 'selected' if guest.trust_flag == tf else '' }}"
+                           style="background: {{ trust_colors[tf] }}22; color: {{ trust_colors[tf] }};"
+                           onclick="selectTrust(this)">
+                        <input type="radio" name="trust_flag" value="{{ tf }}"
+                               {{ 'checked' if guest.trust_flag == tf else '' }}>
+                        {{ trust_icons[tf] }} {{ tf|capitalize }}
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Admin Notes</label>
+                <textarea name="notes" placeholder="Notes about this guest...">{{ guest.notes or '' }}</textarea>
+            </div>
+
+            <div class="actions-bar">
+                <button type="submit" class="btn btn-orange">💾 Save Changes</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Order History -->
+    <div class="block">
+        <h3>📋 Order History ({{ orders|length }})</h3>
+        {% if orders %}
+        <table class="orders-table">
+            <thead>
+                <tr>
+                    <th>Order</th>
+                    <th>Status</th>
+                    <th>Mix</th>
+                    <th>Hookahs</th>
+                    <th>Deposit</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for o in orders %}
+                <tr onclick="window.location='{{ url_for('orders.order_detail', order_id=o.id) }}'">
+                    <td><strong>#{{ o.id_short }}</strong></td>
+                    <td>
+                        <span class="status-badge" style="background: {{ status_colors.get(o.status, '#7f8c8d') }}">
+                            {{ o.status }}
+                        </span>
+                    </td>
+                    <td>{{ o.mix_name or '—' }}</td>
+                    <td>{{ o.hookah_count }}</td>
+                    <td>
+                        {% if o.deposit_type == 'passport' %}🪪{% elif o.deposit_type == 'cash' %}💵 {{ o.deposit_amount_gel or 100 }}₾{% else %}—{% endif %}
+                    </td>
+                    <td style="color: #8892a4; font-size: 12px;">{{ o.created_at.strftime('%d.%m.%y %H:%M') if o.created_at else '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="text-align: center; color: #5a6270; padding: 20px; font-size: 13px;">
+            No orders yet.
+        </div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function selectTrust(el) {
+    document.querySelectorAll('.trust-radio').forEach(r => r.classList.remove('selected'));
+    el.classList.add('selected');
+    el.querySelector('input').checked = true;
+}
+</script>
+{% endblock %}

@@ -1,52 +1,49 @@
 # CURRENT_TASK.md
 
-## F3.2: Settings Editor — DONE ✅
+## F3.3: Guests Management (CRM) — DONE ✅
 
 ### What was done
 
-1. **Seeded 8 new settings** (`backend/seed_settings.py`)
-   - `event_min_hookahs`, `event_min_advance_hours`, `event_prepayment_percent`
-   - `delivery_estimate_min`, `delivery_estimate_max`, `delivery_estimate_busy`
-   - `first_order_discount`, `first_order_promo_code`
-   - Total: 35 settings in DB
+1. **Guests route** (`admin/routes/guests.py`)
+   - `GET /guests/` — list with search (phone/name ILIKE) and trust filter tabs (All/Normal/Low/Blacklist)
+   - `GET /guests/<id>` — detail with aggregated metrics (total_spent, favorite_mix), order history
+   - `POST /guests/<id>/update` — edit name, trust_flag, notes with audit logging
+   - Trust flags: normal (🟢), low (🟡), blacklist (🔴) with colored badges
 
-2. **Settings route** (`admin/routes/settings.py`)
-   - `GET /settings/` — queries all settings, groups by 9 categories
-   - `POST /settings/` — processes form, updates only changed values
-   - Type detection: boolean (toggle), number, time, text
-   - Correct boolean handling: hidden field + checkbox pattern with `getlist()`
-   - Audit logging for every changed setting (entity_type='setting', key in details JSON)
-   - Flash messages for success/info
+2. **Guests list template** (`admin/templates/guests_list.html`)
+   - Search bar + trust filter tabs
+   - Table: Guest (name + phone), Telegram, Trust badge, Orders, Spent (₾), Last Order, Passport
+   - Clickable rows → guest detail
+   - Empty state
 
-3. **Settings template** (`admin/templates/settings.html`)
-   - 9 collapsible groups: Business Hours, Pricing, Session, Inventory, Drinks, Discounts & Promos, Events, Delivery, Other
-   - Type-aware inputs: toggles for booleans, number inputs, time inputs, text inputs
-   - Monospace key names with descriptions
-   - Dark theme, colored left borders per group
-   - Sticky save button at bottom
-   - Flash messages (green success, blue info)
+3. **Guest detail template** (`admin/templates/guest_detail.html`)
+   - Stats cards: Orders, Total Spent, Rebowls, Favorite Mix
+   - Guest info block: phone, telegram_id, passport status, member since, last order
+   - Edit form: name input, trust level radio buttons (visual selection), notes textarea
+   - Order history table with status badges, clickable to order detail
+   - Flash messages for save feedback
 
 4. **Wiring**
-   - `admin/app.py` — registered settings_bp
+   - `admin/app.py` — registered guests_bp
    - `admin/templates/base.html` — sidebar link with active state
 
 ### Files created
-- `admin/routes/settings.py`
-- `admin/templates/settings.html`
+- `admin/routes/guests.py`
+- `admin/templates/guests_list.html`
+- `admin/templates/guest_detail.html`
 
 ### Files modified
 - `admin/app.py` (blueprint registration)
 - `admin/templates/base.html` (sidebar link)
-- `backend/seed_settings.py` (8 new settings)
 
 ### Verified
-- Admin service healthy ✅
-- Settings page renders with all 35 settings in 9 groups ✅
-- Save works: number and text changes persist ✅
-- Boolean toggle works (checked → true, unchecked → false) ✅
-- Audit logs created for changes ✅
+- Guests list renders with data ✅
+- Search by phone works ✅
+- Trust filter works ✅
+- Guest detail renders with stats + order history ✅
+- Update name/trust/notes persists + creates audit log ✅
 - Git committed and pushed ✅
 
 ## Status: DONE
 
-## Next task: F3.3 — Guests Management (CRM)
+## Next task: F3.4 — Discounts & Promo Codes

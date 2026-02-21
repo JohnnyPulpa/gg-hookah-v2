@@ -83,7 +83,7 @@
             <a href="{{ url_for('orders.orders_list') }}" class="{% if self.sidebar_active()|trim == 'orders' %}active{% endif %}">📋 Orders</a>
             <a href="{{ url_for('sessions.sessions_list') }}" class="{% if self.sidebar_active()|trim == 'sessions' %}active{% endif %}">⏱ Sessions</a>
             <a href="#">💬 Support</a>
-            <a href="#">👤 Guests</a>
+            <a href="{{ url_for('guests.guests_list') }}" class="{% if self.sidebar_active()|trim == 'guests' %}active{% endif %}">👤 Guests</a>
             <a href="#">🎟 Discounts</a>
             <a href="#">🏷 Promo Codes</a>
             <a href="{{ url_for('menu.mixes_list') }}" class="{% if self.sidebar_active()|trim == 'menu' %}active{% endif %}">📦 Menu</a>

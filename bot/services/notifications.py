@@ -21,11 +21,18 @@ EVENT_TEMPLATE_MAP = {
     "SESSION_ENDING_AFTER_02": "session_ending_after_02",
     "SESSION_ENDING": None,  # resolved dynamically
     "PICKUP_REQUESTED": "pickup_requested",
+    "WAITING_FOR_PICKUP": "pickup_requested",
     "ORDER_COMPLETED": "order_completed",
     "ORDER_CANCELED": "order_canceled",
     "REBOWL_IN_PROGRESS": "rebowl_on_the_way",
     "REBOWL_DONE": "rebowl_done",
     "FREE_EXTENSION": "free_extension_used",
+}
+
+# Events that trigger admin notifications (from miniapp actions)
+ADMIN_NOTIFY_EVENTS = {
+    "ORDER_CANCELED": "admin_client_cancel",
+    "WAITING_FOR_PICKUP": "admin_client_ready_pickup",
 }
 
 # Map event → order status (for attaching action buttons)
@@ -98,9 +105,21 @@ async def send_notification(bot: Bot, event: str, telegram_id: int, data: dict) 
                 after_hours=after_hours,
             )
 
-        # Send
+        # Send to user
         await bot.send_message(telegram_id, text, reply_markup=reply_markup)
         log.info("Notification sent: event=%s telegram_id=%s", event, telegram_id)
+
+        # Send admin notification if applicable (miniapp actions)
+        admin_template = ADMIN_NOTIFY_EVENTS.get(event)
+        if admin_template:
+            from bot.config import ADMIN_IDS
+            client_name = await db.get_user_name(telegram_id)
+            admin_text = t(admin_template, "ru", client_name=client_name, **data)
+            for admin_id in ADMIN_IDS:
+                try:
+                    await bot.send_message(admin_id, admin_text)
+                except Exception:
+                    log.warning("Failed to notify admin %s", admin_id)
 
     except Exception:
         log.exception("Failed to send notification: event=%s telegram_id=%s", event, telegram_id)

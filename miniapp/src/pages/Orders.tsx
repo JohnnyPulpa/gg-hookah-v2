@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguageContext } from '../contexts/LanguageContext';
 import { t } from '../utils/translations';
-import { getOrders, OrderData } from '../api/orders';
+import { getOrders, cancelOrder, readyForPickup, OrderData } from '../api/orders';
 import { getTelegramId } from '../api/client';
 
 function SessionTimer({ endsAt }: { endsAt: string }) {
@@ -69,9 +69,13 @@ export default function Orders() {
   const [history, setHistory] = useState<OrderData[]>([]);
   const [loading, setLoading] = useState(true);
   const [showSuccess, setShowSuccess] = useState(locationState?.justCreated || false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionMessage, setActionMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
-  useEffect(() => {
-    const telegramId = getTelegramId();
+  const telegramId = getTelegramId();
+
+  const fetchOrders = useCallback(() => {
     getOrders(telegramId)
       .then((data) => {
         setActive(data.active);
@@ -79,7 +83,9 @@ export default function Orders() {
       })
       .catch((err) => console.error('Failed to fetch orders:', err))
       .finally(() => setLoading(false));
-  }, []);
+  }, [telegramId]);
+
+  useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
   useEffect(() => {
     if (showSuccess) {
@@ -87,6 +93,42 @@ export default function Orders() {
       return () => clearTimeout(timer);
     }
   }, [showSuccess]);
+
+  useEffect(() => {
+    if (actionMessage) {
+      const timer = setTimeout(() => setActionMessage(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [actionMessage]);
+
+  const handleCancel = async () => {
+    if (!active) return;
+    setActionLoading(true);
+    try {
+      await cancelOrder(active.id, telegramId);
+      setActionMessage({ text: t('action_cancel_success', language), type: 'success' });
+      setConfirmCancel(false);
+      fetchOrders();
+    } catch {
+      setActionMessage({ text: t('action_error', language), type: 'error' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReadyForPickup = async () => {
+    if (!active) return;
+    setActionLoading(true);
+    try {
+      await readyForPickup(active.id, telegramId);
+      setActionMessage({ text: t('action_pickup_success', language), type: 'success' });
+      fetchOrders();
+    } catch {
+      setActionMessage({ text: t('action_error', language), type: 'error' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const getStatusLabel = (status: string): string => {
     const key = `status_${status.toLowerCase().replace('_active', '').replace('_ending', '')}` as keyof typeof t;
@@ -268,8 +310,128 @@ export default function Orders() {
                 </>
               )}
 
-            {/* Support button */}
-            <div className="flex" style={{ gap: 8, marginTop: 12 }}>
+            {/* Action message */}
+            {actionMessage && (
+              <div
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  marginTop: 12,
+                  background: actionMessage.type === 'success' ? '#E8F5E9' : '#FFEBEE',
+                  color: actionMessage.type === 'success' ? 'var(--green-dark)' : '#C62828',
+                  border: `1.5px solid ${actionMessage.type === 'success' ? 'var(--green)' : '#EF9A9A'}`,
+                }}
+              >
+                {actionMessage.type === 'success' ? '✅' : '❌'} {actionMessage.text}
+              </div>
+            )}
+
+            {/* Cancel confirmation */}
+            {confirmCancel && (
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: 14,
+                  borderRadius: 'var(--radius-sm)',
+                  background: '#FFF3E0',
+                  border: '1.5px solid var(--orange)',
+                }}
+              >
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>
+                  {t('action_confirm_cancel', language)}
+                </div>
+                <div className="flex" style={{ gap: 8 }}>
+                  <button
+                    onClick={handleCancel}
+                    disabled={actionLoading}
+                    style={{
+                      flex: 1,
+                      padding: 10,
+                      borderRadius: 'var(--radius-sm)',
+                      fontFamily: "'Nunito', sans-serif",
+                      fontSize: 12,
+                      fontWeight: 800,
+                      cursor: actionLoading ? 'not-allowed' : 'pointer',
+                      background: '#C62828',
+                      color: 'white',
+                      border: 'none',
+                      opacity: actionLoading ? 0.6 : 1,
+                    }}
+                  >
+                    {t('action_confirm_cancel_yes', language)}
+                  </button>
+                  <button
+                    onClick={() => setConfirmCancel(false)}
+                    style={{
+                      flex: 1,
+                      padding: 10,
+                      borderRadius: 'var(--radius-sm)',
+                      fontFamily: "'Nunito', sans-serif",
+                      fontSize: 12,
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      background: 'transparent',
+                      color: 'var(--text-secondary)',
+                      border: '1.5px solid var(--border)',
+                    }}
+                  >
+                    {t('action_confirm_cancel_no', language)}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex" style={{ gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+              {/* Cancel — before delivery */}
+              {['NEW', 'CONFIRMED', 'ON_THE_WAY'].includes(active.status) && !confirmCancel && (
+                <button
+                  onClick={() => setConfirmCancel(true)}
+                  style={{
+                    flex: 1,
+                    padding: 10,
+                    borderRadius: 'var(--radius-sm)',
+                    fontFamily: "'Nunito', sans-serif",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    background: 'transparent',
+                    color: '#C62828',
+                    border: '1.5px solid #EF9A9A',
+                    textAlign: 'center',
+                  }}
+                >
+                  ❌ {t('action_cancel_order', language)}
+                </button>
+              )}
+
+              {/* Ready for pickup — during session */}
+              {['SESSION_ACTIVE', 'SESSION_ENDING'].includes(active.status) && (
+                <button
+                  onClick={handleReadyForPickup}
+                  disabled={actionLoading}
+                  style={{
+                    flex: 1,
+                    padding: 10,
+                    borderRadius: 'var(--radius-sm)',
+                    fontFamily: "'Nunito', sans-serif",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: actionLoading ? 'not-allowed' : 'pointer',
+                    background: 'var(--green)',
+                    color: 'white',
+                    border: 'none',
+                    textAlign: 'center',
+                    opacity: actionLoading ? 0.6 : 1,
+                  }}
+                >
+                  📦 {t('action_ready_pickup', language)}
+                </button>
+              )}
+
+              {/* Support — always visible */}
               <button
                 onClick={() => window.open('https://t.me/gghookah_support', '_blank')}
                 style={{

@@ -589,3 +589,109 @@ def get_orders():
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
+
+# ─── Order Actions (F2.4) ────────────────────────────────────
+import uuid as _uuid
+import requests as _requests
+
+NOTIFY_URL = "http://127.0.0.1:5003/notify"
+
+
+def _notify_bot(event: str, telegram_id: int, order_id_short: str, **extra):
+    """Fire-and-forget notification to bot service."""
+    try:
+        payload = {"event": event, "telegram_id": telegram_id, "order_id_short": order_id_short, **extra}
+        _requests.post(NOTIFY_URL, json=payload, timeout=3)
+    except Exception:
+        pass  # Non-critical
+
+
+@app.route("/api/orders/<order_id>/cancel", methods=["POST"])
+def cancel_order(order_id):
+    """Cancel an active order (before DELIVERED)."""
+    try:
+        try:
+            _uuid.UUID(order_id)
+        except ValueError:
+            return jsonify({"error": "Invalid order ID"}), 400
+        data = request.get_json() or {}
+        telegram_id = data.get("telegram_id")
+        if not telegram_id:
+            return jsonify({"error": "telegram_id required"}), 400
+
+        with engine.begin() as conn:
+            row = conn.execute(
+                text("""
+                    UPDATE orders
+                    SET status = 'CANCELED', canceled_at = now(), updated_at = now()
+                    WHERE id = :oid AND telegram_id = :tid
+                      AND status IN ('NEW', 'CONFIRMED', 'ON_THE_WAY')
+                    RETURNING id
+                """),
+                {"oid": order_id, "tid": int(telegram_id)},
+            ).fetchone()
+
+            if not row:
+                return jsonify({"error": "Cannot cancel this order"}), 400
+
+            conn.execute(
+                text("""
+                    INSERT INTO audit_logs (entity_type, entity_id, action, details, admin_telegram_id)
+                    VALUES ('order', :oid, 'CLIENT_CANCEL', '{"source":"miniapp"}', :tid)
+                """),
+                {"oid": order_id, "tid": int(telegram_id)},
+            )
+
+        _notify_bot("ORDER_CANCELED", int(telegram_id), order_id[:8])
+        return jsonify({"ok": True, "status": "CANCELED"})
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/orders/<order_id>/ready-for-pickup", methods=["POST"])
+def ready_for_pickup(order_id):
+    """Client signals ready for hookah pickup during session."""
+    try:
+        try:
+            _uuid.UUID(order_id)
+        except ValueError:
+            return jsonify({"error": "Invalid order ID"}), 400
+        data = request.get_json() or {}
+        telegram_id = data.get("telegram_id")
+        if not telegram_id:
+            return jsonify({"error": "telegram_id required"}), 400
+
+        with engine.begin() as conn:
+            row = conn.execute(
+                text("""
+                    UPDATE orders
+                    SET status = 'WAITING_FOR_PICKUP', pickup_requested_at = now(), updated_at = now()
+                    WHERE id = :oid AND telegram_id = :tid
+                      AND status IN ('SESSION_ACTIVE', 'SESSION_ENDING')
+                    RETURNING id
+                """),
+                {"oid": order_id, "tid": int(telegram_id)},
+            ).fetchone()
+
+            if not row:
+                return jsonify({"error": "Cannot request pickup for this order"}), 400
+
+            conn.execute(
+                text("""
+                    INSERT INTO audit_logs (entity_type, entity_id, action, details, admin_telegram_id)
+                    VALUES ('order', :oid, 'CLIENT_READY_PICKUP', '{"source":"miniapp"}', :tid)
+                """),
+                {"oid": order_id, "tid": int(telegram_id)},
+            )
+
+        _notify_bot("WAITING_FOR_PICKUP", int(telegram_id), order_id[:8])
+        return jsonify({"ok": True, "status": "WAITING_FOR_PICKUP"})
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500

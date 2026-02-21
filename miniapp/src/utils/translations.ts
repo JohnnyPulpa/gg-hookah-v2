@@ -87,6 +87,16 @@ type TranslationKeys = {
   status_completed: string;
   status_cancelled: string;
 
+  // Order actions
+  action_cancel_order: string;
+  action_ready_pickup: string;
+  action_confirm_cancel: string;
+  action_confirm_cancel_yes: string;
+  action_confirm_cancel_no: string;
+  action_cancel_success: string;
+  action_pickup_success: string;
+  action_error: string;
+
   // Common
   support: string;
   cancel: string;
@@ -172,6 +182,15 @@ const translations: Record<Language, TranslationKeys> = {
     status_completed: 'ЗАВЕРШЁН',
     status_cancelled: 'ОТМЕНЁН',
 
+    action_cancel_order: 'Отменить заказ',
+    action_ready_pickup: 'Готов отдать кальян',
+    action_confirm_cancel: 'Вы уверены, что хотите отменить заказ?',
+    action_confirm_cancel_yes: 'Да, отменить',
+    action_confirm_cancel_no: 'Нет',
+    action_cancel_success: 'Заказ отменён',
+    action_pickup_success: 'Запрос принят, скоро будем!',
+    action_error: 'Не удалось выполнить действие',
+
     support: 'Поддержка',
     cancel: 'Отменить',
     back: 'Назад',
@@ -254,6 +273,15 @@ const translations: Record<Language, TranslationKeys> = {
     status_session: 'SESSION',
     status_completed: 'COMPLETED',
     status_cancelled: 'CANCELLED',
+
+    action_cancel_order: 'Cancel order',
+    action_ready_pickup: 'Ready for pickup',
+    action_confirm_cancel: 'Are you sure you want to cancel the order?',
+    action_confirm_cancel_yes: 'Yes, cancel',
+    action_confirm_cancel_no: 'No',
+    action_cancel_success: 'Order canceled',
+    action_pickup_success: 'Request received, we\'ll be there soon!',
+    action_error: 'Action failed',
 
     support: 'Support',
     cancel: 'Cancel',

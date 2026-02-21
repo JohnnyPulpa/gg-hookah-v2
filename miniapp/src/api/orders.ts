@@ -78,3 +78,13 @@ export async function getOrders(telegramId: number): Promise<OrdersResponse> {
   const { data } = await api.get('/orders', { params: { telegram_id: telegramId } });
   return data;
 }
+
+export async function cancelOrder(orderId: string, telegramId: number): Promise<{ ok: boolean; status: string }> {
+  const { data } = await api.post(`/orders/${orderId}/cancel`, { telegram_id: telegramId });
+  return data;
+}
+
+export async function readyForPickup(orderId: string, telegramId: number): Promise<{ ok: boolean; status: string }> {
+  const { data } = await api.post(`/orders/${orderId}/ready-for-pickup`, { telegram_id: telegramId });
+  return data;
+}

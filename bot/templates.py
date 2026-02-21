@@ -177,6 +177,30 @@ TEMPLATES = {
             "Client: {client_name}"
         ),
     },
+    "admin_client_free_extend": {
+        "ru": (
+            "⏰ Клиент использовал бесплатное продление +1ч\n"
+            "Заказ #{order_id_short}\n"
+            "Клиент: {client_name}"
+        ),
+        "en": (
+            "⏰ Client used free +1h extension\n"
+            "Order #{order_id_short}\n"
+            "Client: {client_name}"
+        ),
+    },
+    "admin_client_rebowl": {
+        "ru": (
+            "🔄 Клиент запросил новую чашу (50₾)\n"
+            "Заказ #{order_id_short}\n"
+            "Клиент: {client_name}"
+        ),
+        "en": (
+            "🔄 Client requested new bowl (50₾)\n"
+            "Order #{order_id_short}\n"
+            "Client: {client_name}"
+        ),
+    },
 
     # --- Errors / info ---
     "no_active_order": {

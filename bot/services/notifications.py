@@ -78,7 +78,25 @@ async def send_notification(bot: Bot, event: str, telegram_id: int, data: dict) 
 
         # Attach action buttons if applicable
         status = EVENT_TO_STATUS.get(event)
-        reply_markup = order_actions_keyboard(lang, status) if status else None
+        reply_markup = None
+        if status:
+            # For session events, fetch order data for smart buttons
+            free_ext_used = True  # default: hide extension button
+            active_rebowl = False
+            after_hours = db.is_after_hours()
+
+            if status in ("SESSION_ENDING", "SESSION_ACTIVE"):
+                order = await db.get_active_order(telegram_id)
+                if order:
+                    free_ext_used = bool(order.get("free_extension_used"))
+                    active_rebowl = await db.has_active_rebowl(str(order["id"]))
+
+            reply_markup = order_actions_keyboard(
+                lang, status,
+                free_extension_used=free_ext_used,
+                has_active_rebowl=active_rebowl,
+                after_hours=after_hours,
+            )
 
         # Send
         await bot.send_message(telegram_id, text, reply_markup=reply_markup)

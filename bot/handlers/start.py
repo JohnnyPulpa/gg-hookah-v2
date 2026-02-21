@@ -8,7 +8,7 @@ from aiogram import Router, F
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
 
-from bot.db import get_user_language, get_active_order, ensure_user_exists
+from bot.db import get_user_language, get_active_order, ensure_user_exists, has_active_rebowl, is_after_hours
 from bot.templates import t
 from bot.keyboards.main import main_keyboard, order_actions_keyboard, LABELS
 from bot.config import MINI_APP_URL, DOMAIN
@@ -159,7 +159,14 @@ async def btn_my_order(message: Message) -> None:
         text += f"\n⏱ {timer_label}: {mins} мин" if lang == "ru" else f"\n⏱ {timer_label}: {mins} min"
 
     # Add action buttons based on order status
-    actions_kb = order_actions_keyboard(lang, status)
+    order_id = str(order["id"])
+    active_rebowl = await has_active_rebowl(order_id) if status in ("SESSION_ACTIVE", "SESSION_ENDING") else False
+    actions_kb = order_actions_keyboard(
+        lang, status,
+        free_extension_used=bool(order.get("free_extension_used")),
+        has_active_rebowl=active_rebowl,
+        after_hours=is_after_hours(),
+    )
     await message.answer(text, reply_markup=actions_kb)
 
 

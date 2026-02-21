@@ -51,8 +51,21 @@ def main_keyboard(lang: str = "ru", mini_app_url: str | None = None) -> ReplyKey
     )
 
 
-def order_actions_keyboard(lang: str = "ru", status: str = "") -> InlineKeyboardMarkup | None:
+def order_actions_keyboard(
+    lang: str = "ru",
+    status: str = "",
+    free_extension_used: bool = True,
+    has_active_rebowl: bool = False,
+    after_hours: bool = False,
+) -> InlineKeyboardMarkup | None:
     """Inline action buttons based on current order status.
+
+    Args:
+        lang: user language
+        status: current order status
+        free_extension_used: whether free +1h was already used
+        has_active_rebowl: whether there's an active rebowl request
+        after_hours: whether it's after 02:00 Tbilisi time
 
     Returns None if no actions are available for the given status.
     """
@@ -65,6 +78,24 @@ def order_actions_keyboard(lang: str = "ru", status: str = "") -> InlineKeyboard
             text=cancel_text,
             callback_data="action:cancel",
         )])
+
+    # Session ending actions (before 02:00 only)
+    if status == "SESSION_ENDING" and not after_hours:
+        # Free extension (once per session)
+        if not free_extension_used:
+            ext_text = "⏰ +1 час бесплатно" if lang == "ru" else "⏰ +1 hour free"
+            buttons.append([InlineKeyboardButton(
+                text=ext_text,
+                callback_data="action:free_extend",
+            )])
+
+        # Rebowl (if no active request)
+        if not has_active_rebowl:
+            rebowl_text = "🔄 Новая чаша 50₾" if lang == "ru" else "🔄 New bowl 50₾"
+            buttons.append([InlineKeyboardButton(
+                text=rebowl_text,
+                callback_data="action:rebowl",
+            )])
 
     # Ready for pickup during session
     if status in ("SESSION_ACTIVE", "SESSION_ENDING"):

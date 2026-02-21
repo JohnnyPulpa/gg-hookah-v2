@@ -5,8 +5,10 @@ since bot DB calls are infrequent (no need for full async driver).
 """
 
 import asyncio
+from datetime import datetime
 from functools import partial
 from sqlalchemy import create_engine, text
+import pytz
 from bot.config import DATABASE_URL
 
 # Create engine once (shared across bot lifetime)
@@ -42,12 +44,20 @@ async def get_user_language(telegram_id: int) -> str:
     return "ru"
 
 
+def is_after_hours() -> bool:
+    """Check if current Tbilisi time is between 02:00 and 18:00 (no extensions/rebowl)."""
+    tz = pytz.timezone("Asia/Tbilisi")
+    now_local = datetime.now(tz)
+    return 2 <= now_local.hour < 18
+
+
 async def get_active_order(telegram_id: int) -> dict | None:
     """Get active order for a telegram user (not COMPLETED/CANCELED)."""
     rows = await execute(
         """
         SELECT o.id, o.status, o.address_text, o.phone,
                o.hookah_count, o.created_at, o.session_ends_at,
+               o.free_extension_used, o.mix_id,
                m.name as mix_name
         FROM orders o
         LEFT JOIN mixes m ON m.id = o.mix_id
@@ -125,6 +135,75 @@ async def get_user_name(telegram_id: int) -> str:
         if username:
             return f"@{username}"
     return str(telegram_id)
+
+
+async def apply_free_extension(order_id: str, telegram_id: int) -> bool:
+    """Apply free +1h extension (client action). Returns True if successful."""
+    rows = await execute(
+        """
+        UPDATE orders
+        SET status = 'SESSION_ACTIVE',
+            session_ends_at = session_ends_at + interval '60 minutes',
+            free_extension_used = true,
+            updated_at = now()
+        WHERE id = :oid
+          AND telegram_id = :tid
+          AND status = 'SESSION_ENDING'
+          AND free_extension_used = false
+        RETURNING id
+        """,
+        {"oid": order_id, "tid": telegram_id},
+    )
+    if rows:
+        await execute(
+            """
+            INSERT INTO audit_logs (entity_type, entity_id, action, details, admin_telegram_id)
+            VALUES ('order', :oid, 'CLIENT_FREE_EXTENSION', '{"source":"telegram_bot","minutes":60}', :tid)
+            """,
+            {"oid": order_id, "tid": telegram_id},
+        )
+        return True
+    return False
+
+
+async def has_active_rebowl(order_id: str) -> bool:
+    """Check if order has an active rebowl request (REQUESTED or IN_PROGRESS)."""
+    rows = await execute(
+        """
+        SELECT 1 FROM rebowl_requests
+        WHERE order_id = :oid
+          AND status IN ('REQUESTED', 'IN_PROGRESS')
+        LIMIT 1
+        """,
+        {"oid": order_id},
+    )
+    return bool(rows)
+
+
+async def create_rebowl_request(order_id: str, telegram_id: int, mix_id: str) -> bool:
+    """Create a rebowl request (client action). Returns True if successful."""
+    # Check no active rebowl first
+    if await has_active_rebowl(order_id):
+        return False
+
+    rows = await execute(
+        """
+        INSERT INTO rebowl_requests (order_id, requested_by_telegram_id, mix_id, price_gel, add_minutes, status)
+        VALUES (:oid, :tid, :mid, 50, 120, 'REQUESTED')
+        RETURNING id
+        """,
+        {"oid": order_id, "tid": telegram_id, "mid": mix_id},
+    )
+    if rows:
+        await execute(
+            """
+            INSERT INTO audit_logs (entity_type, entity_id, action, details, admin_telegram_id)
+            VALUES ('rebowl_request', :rid, 'CLIENT_REBOWL_REQUEST', :details, :tid)
+            """,
+            {"rid": str(rows[0]["id"]), "details": f'{{"source":"telegram_bot","order_id":"{order_id}"}}', "tid": telegram_id},
+        )
+        return True
+    return False
 
 
 async def ensure_user_exists(telegram_id: int, first_name: str = "",

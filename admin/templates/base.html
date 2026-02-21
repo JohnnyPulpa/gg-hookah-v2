@@ -70,7 +70,7 @@
     <!-- {% block sidebar_active %}{% endblock %} -->
 
     <div class="topbar">
-        <a href="{{ url_for('dashboard') }}" class="logo">🔥 GG HOOKAH Admin</a>
+        <a href="{{ url_for('dashboard.index') }}" class="logo">🔥 GG HOOKAH Admin</a>
         <div class="user-info">
             <span>Admin ID: {{ session.get('admin_id') }}</span>
             <a href="{{ url_for('auth.logout') }}" class="logout-btn">Logout</a>
@@ -79,6 +79,7 @@
 
     <div class="layout">
         <nav class="sidebar">
+            <a href="{{ url_for('dashboard.index') }}" class="{% if self.sidebar_active()|trim == 'dashboard' %}active{% endif %}">📊 Dashboard</a>
             <a href="{{ url_for('orders.orders_list') }}" class="{% if self.sidebar_active()|trim == 'orders' %}active{% endif %}">📋 Orders</a>
             <a href="{{ url_for('sessions.sessions_list') }}" class="{% if self.sidebar_active()|trim == 'sessions' %}active{% endif %}">⏱ Sessions</a>
             <a href="#">💬 Support</a>

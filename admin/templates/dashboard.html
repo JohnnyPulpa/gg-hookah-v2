@@ -1,18 +1,426 @@
 {% extends "base.html" %}
-{% block title %}GG HOOKAH — Admin{% endblock %}
-{% block sidebar_active %}orders{% endblock %}
+{% block title %}Dashboard — GG HOOKAH Admin{% endblock %}
+{% block sidebar_active %}dashboard{% endblock %}
 
 {% block extra_styles %}
 <style>
-    .card { background: #16213e; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
-    .card p { color: #8892a4; font-size: 14px; line-height: 1.6; }
+    /* --- Widgets --- */
+    .widgets { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .widget {
+        flex: 1; min-width: 150px;
+        background: #16213e; border-radius: 10px; padding: 16px 18px;
+        border-left: 4px solid #555; position: relative;
+    }
+    .widget .w-value { font-size: 28px; font-weight: 700; color: #e0e0e0; }
+    .widget .w-label { font-size: 12px; color: #8892a4; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .widget .w-icon { position: absolute; top: 14px; right: 16px; font-size: 20px; opacity: 0.6; }
+    .w-orange { border-left-color: #F28C18; }
+    .w-green  { border-left-color: #2ecc71; }
+    .w-blue   { border-left-color: #3498db; }
+    .w-teal   { border-left-color: #1abc9c; }
+    .w-purple { border-left-color: #9b59b6; }
+
+    /* --- Kanban --- */
+    .kanban-section { margin-bottom: 24px; }
+    .kanban-section h3 { color: #F28C18; font-size: 16px; margin-bottom: 12px; }
+    .kanban {
+        display: flex; gap: 10px; overflow-x: auto;
+        padding-bottom: 8px; scrollbar-width: thin;
+        scrollbar-color: #0f3460 #1a1a2e;
+    }
+    .kanban::-webkit-scrollbar { height: 6px; }
+    .kanban::-webkit-scrollbar-track { background: #1a1a2e; }
+    .kanban::-webkit-scrollbar-thumb { background: #0f3460; border-radius: 3px; }
+
+    .kanban-col {
+        min-width: 210px; width: 210px; flex-shrink: 0;
+        background: rgba(22, 33, 62, 0.5); border-radius: 10px;
+        padding: 10px; max-height: 520px; overflow-y: auto;
+        scrollbar-width: thin; scrollbar-color: #0f3460 transparent;
+    }
+    .kanban-col::-webkit-scrollbar { width: 4px; }
+    .kanban-col::-webkit-scrollbar-thumb { background: #0f3460; border-radius: 2px; }
+
+    .col-header {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 10px; padding: 0 4px;
+    }
+    .col-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .col-count {
+        font-size: 11px; font-weight: 700; padding: 2px 8px;
+        border-radius: 10px; color: #fff;
+    }
+
+    .k-card {
+        background: #16213e; border-radius: 8px; padding: 10px 12px;
+        margin-bottom: 8px; border-left: 3px solid #555;
+        cursor: pointer; transition: background 0.15s;
+        font-size: 12px;
+    }
+    .k-card:hover { background: #1a2948; }
+
+    .k-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .k-id { font-weight: 700; color: #F28C18; }
+    .k-time { color: #8892a4; font-size: 11px; }
+
+    .k-mix { color: #e0e0e0; margin-bottom: 4px; line-height: 1.3; }
+    .k-mix .hookah-cnt { color: #F28C18; font-weight: 600; }
+
+    .k-meta { display: flex; justify-content: space-between; align-items: center; color: #8892a4; font-size: 11px; }
+    .k-phone { font-family: monospace; }
+
+    .k-timer { color: #e74c3c; font-weight: 700; font-size: 13px; text-align: center; margin: 4px 0; }
+    .k-timer.ok { color: #2ecc71; }
+    .k-timer.overdue { color: #e74c3c; animation: pulse 1.5s infinite; }
+
+    .k-trust-low { color: #e74c3c; font-size: 10px; font-weight: 600; }
+    .k-deposit { font-size: 11px; }
+
+    .k-action {
+        display: block; width: 100%; margin-top: 8px; padding: 5px;
+        border: none; border-radius: 5px; color: #fff;
+        font-size: 11px; font-weight: 600; cursor: pointer;
+        transition: opacity 0.15s; text-align: center;
+    }
+    .k-action:hover { opacity: 0.85; }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    /* --- Charts --- */
+    .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .chart-card {
+        background: #16213e; border-radius: 10px; padding: 18px;
+    }
+    .chart-card h4 { color: #F28C18; font-size: 14px; margin-bottom: 12px; }
+    .chart-card canvas { max-height: 220px; }
+
+    /* --- Alerts --- */
+    .alerts-section { margin-bottom: 24px; }
+    .alerts-section h3 { color: #F28C18; font-size: 16px; margin-bottom: 12px; }
+    .alert-cards { display: flex; gap: 10px; flex-wrap: wrap; }
+    .alert-card {
+        background: #16213e; border-radius: 8px; padding: 12px 16px;
+        border-left: 4px solid; font-size: 13px; min-width: 240px;
+    }
+    .alert-card.overdue { border-left-color: #e74c3c; }
+    .alert-card.low-trust { border-left-color: #f39c12; }
+    .alert-card .a-title { font-weight: 600; margin-bottom: 4px; }
+    .alert-card .a-detail { color: #8892a4; font-size: 12px; }
+    .alert-card a { color: #F28C18; text-decoration: none; }
+    .alert-card a:hover { text-decoration: underline; }
+
+    /* --- Notification banner --- */
+    .new-order-banner {
+        display: none; position: fixed; top: 60px; right: 24px; z-index: 999;
+        background: #2ecc71; color: #fff; padding: 12px 20px;
+        border-radius: 10px; font-weight: 600; font-size: 14px;
+        box-shadow: 0 4px 20px rgba(46, 204, 113, 0.4);
+        animation: slideIn 0.3s ease;
+    }
+    .new-order-banner.show { display: block; }
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* --- Responsive --- */
+    @media (max-width: 900px) {
+        .charts { grid-template-columns: 1fr; }
+        .widgets { flex-direction: column; }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-    <h2>Active Orders</h2>
-    <div class="card">
-        <p>Admin panel is ready. Orders list will be here in the next step (M7.3).</p>
-        <p style="margin-top: 8px;">Auth is working — you are logged in as Telegram ID <strong style="color: #F28C18;">{{ admin_id }}</strong>.</p>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2 style="margin-bottom: 0;">Dashboard</h2>
+        <span style="color: #8892a4; font-size: 12px;" id="refreshTimer">Auto-refresh in 60s</span>
     </div>
+
+    <!-- Widgets -->
+    <div class="widgets">
+        <div class="widget w-orange">
+            <span class="w-icon">📋</span>
+            <div class="w-value">{{ widgets.live_orders }}</div>
+            <div class="w-label">Live Orders</div>
+        </div>
+        <div class="widget w-green">
+            <span class="w-icon">💰</span>
+            <div class="w-value">{{ widgets.today_revenue }}₾</div>
+            <div class="w-label">Today Revenue</div>
+        </div>
+        <div class="widget w-blue">
+            <span class="w-icon">📦</span>
+            <div class="w-value">{{ widgets.orders_today }}</div>
+            <div class="w-label">Orders Today</div>
+        </div>
+        <div class="widget w-teal">
+            <span class="w-icon">⏱</span>
+            <div class="w-value">{{ widgets.active_sessions }}</div>
+            <div class="w-label">Active Sessions</div>
+        </div>
+        <div class="widget w-purple">
+            <span class="w-icon">🔥</span>
+            <div class="w-value">{{ widgets.hookahs_available }}/{{ widgets.hookahs_total }}</div>
+            <div class="w-label">Hookahs Available</div>
+        </div>
+    </div>
+
+    <!-- Alerts (only if any) -->
+    {% if alerts.overdue or alerts.low_trust %}
+    <div class="alerts-section">
+        <h3>⚠️ Alerts</h3>
+        <div class="alert-cards">
+            {% for a in alerts.overdue %}
+            <div class="alert-card overdue">
+                <div class="a-title">🔴 Overdue Session — {{ a.overdue_min }}min</div>
+                <div class="a-detail">
+                    <a href="{{ url_for('sessions.session_detail', session_id=a.full_id) }}">#{{ a.id }}</a>
+                    · {{ a.guest_name }} · {{ a.phone }}
+                </div>
+            </div>
+            {% endfor %}
+            {% for a in alerts.low_trust %}
+            <div class="alert-card low-trust">
+                <div class="a-title">🟡 Low Trust Guest</div>
+                <div class="a-detail">
+                    <a href="{{ url_for('orders.order_detail', order_id=a.full_id) }}">#{{ a.id }}</a>
+                    · {{ a.guest_name }} · {{ a.phone }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Kanban Board -->
+    <div class="kanban-section">
+        <h3>📋 Active Orders</h3>
+        <div class="kanban">
+            {% for status in kanban_statuses %}
+            <div class="kanban-col">
+                <div class="col-header">
+                    <span class="col-title" style="color: {{ status_colors.get(status, '#8892a4') }}">
+                        {{ kanban_labels.get(status, status) }}
+                    </span>
+                    <span class="col-count" style="background: {{ status_colors.get(status, '#555') }}">
+                        {{ kanban[status]|length }}
+                    </span>
+                </div>
+
+                {% for o in kanban[status] %}
+                <div class="k-card" style="border-left-color: {{ o.status_color }}"
+                     onclick="window.location='{{ url_for('orders.order_detail', order_id=o.id) }}'">
+                    <div class="k-header">
+                        <span class="k-id">#{{ o.id_short }}</span>
+                        <span class="k-time">{{ o.time_ago }}</span>
+                    </div>
+                    <div class="k-mix">
+                        {% for mx in o.mixes_display %}
+                            {{ mx }}{% if not loop.last %}, {% endif %}
+                        {% endfor %}
+                        <span class="hookah-cnt">· {{ o.hookah_count }}x</span>
+                    </div>
+
+                    {% if o.remaining_min is not none %}
+                    <div class="k-timer {{ 'ok' if o.remaining_min > 30 else '' }} {{ 'overdue' if o.is_overdue else '' }}">
+                        {% if o.is_overdue %}OVERDUE{% else %}{{ o.remaining_min }}min{% endif %}
+                    </div>
+                    {% endif %}
+
+                    <div class="k-meta">
+                        <span class="k-phone">{{ o.phone or '—' }}</span>
+                        <span>
+                            {% if o.deposit_type == 'passport' %}🪪{% elif o.deposit_type == 'cash' %}💵{% endif %}
+                            {% if o.trust_flag == 'low' %}<span class="k-trust-low">⚠LOW</span>{% endif %}
+                        </span>
+                    </div>
+
+                    {% if o.quick_action %}
+                    <form method="POST" action="{{ url_for('orders.order_transition', order_id=o.id) }}"
+                          onclick="event.stopPropagation();">
+                        <input type="hidden" name="target_status" value="{{ o.quick_action.target }}">
+                        <button type="submit" class="k-action"
+                                style="background: {{ o.quick_action.color }}"
+                                onclick="event.stopPropagation();">
+                            {{ o.quick_action.icon }} {{ o.quick_action.label }}
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endfor %}
+
+                {% if not kanban[status] %}
+                <div style="text-align: center; color: #5a6270; font-size: 12px; padding: 20px 0;">
+                    No orders
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="charts">
+        <div class="chart-card">
+            <h4>Revenue (Last 7 Days)</h4>
+            <canvas id="revenueChart"></canvas>
+        </div>
+        <div class="chart-card">
+            <h4>Top Mixes</h4>
+            {% if chart_mixes.labels %}
+            <canvas id="mixesChart"></canvas>
+            {% else %}
+            <div style="text-align: center; color: #5a6270; padding: 40px 0; font-size: 13px;">
+                No order data yet
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- New order notification banner -->
+    <div class="new-order-banner" id="newOrderBanner">🔔 New order received!</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script>
+(function() {
+    // --- Charts ---
+    const revenueCtx = document.getElementById('revenueChart');
+    if (revenueCtx) {
+        new Chart(revenueCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ chart_revenue.labels | tojson }},
+                datasets: [{
+                    label: 'Revenue (₾)',
+                    data: {{ chart_revenue.data | tojson }},
+                    backgroundColor: 'rgba(242, 140, 24, 0.7)',
+                    borderColor: '#F28C18',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { color: '#8892a4', callback: v => v + '₾' },
+                        grid: { color: 'rgba(15, 52, 96, 0.5)' }
+                    },
+                    x: {
+                        ticks: { color: '#8892a4' },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+
+    {% if chart_mixes.labels %}
+    const mixesCtx = document.getElementById('mixesChart');
+    if (mixesCtx) {
+        new Chart(mixesCtx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ chart_mixes.labels | tojson }},
+                datasets: [{
+                    data: {{ chart_mixes.data | tojson }},
+                    backgroundColor: {{ chart_mixes.colors | tojson }},
+                    borderWidth: 0,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: { color: '#e0e0e0', font: { size: 12 }, padding: 12 }
+                    }
+                }
+            }
+        });
+    }
+    {% endif %}
+
+    // --- Auto-refresh (60s) ---
+    let countdown = 60;
+    const timerEl = document.getElementById('refreshTimer');
+    setInterval(function() {
+        countdown--;
+        if (timerEl) timerEl.textContent = 'Auto-refresh in ' + countdown + 's';
+        if (countdown <= 0) {
+            window.location.reload();
+        }
+    }, 1000);
+
+    // --- New order sound & notification ---
+    const TOTAL_ACTIVE = {{ total_active }};
+    const prevCount = parseInt(sessionStorage.getItem('gg_active_orders') || '0');
+
+    if (prevCount > 0 && TOTAL_ACTIVE > prevCount) {
+        // New order detected
+        playBeep();
+        showBanner();
+        showBrowserNotification(TOTAL_ACTIVE - prevCount);
+    }
+    sessionStorage.setItem('gg_active_orders', TOTAL_ACTIVE.toString());
+
+    function playBeep() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = 880;
+            osc.type = 'sine';
+            gain.gain.value = 0.3;
+            osc.start();
+            osc.stop(ctx.currentTime + 0.2);
+            setTimeout(function() {
+                const osc2 = ctx.createOscillator();
+                const gain2 = ctx.createGain();
+                osc2.connect(gain2);
+                gain2.connect(ctx.destination);
+                osc2.frequency.value = 1100;
+                osc2.type = 'sine';
+                gain2.gain.value = 0.3;
+                osc2.start();
+                osc2.stop(ctx.currentTime + 0.3);
+            }, 250);
+        } catch(e) {}
+    }
+
+    function showBanner() {
+        const banner = document.getElementById('newOrderBanner');
+        if (banner) {
+            banner.classList.add('show');
+            setTimeout(function() { banner.classList.remove('show'); }, 5000);
+        }
+    }
+
+    function showBrowserNotification(count) {
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('GG Hookah — New Order', {
+                body: count + ' new order(s) received!',
+                icon: '🔥'
+            });
+        }
+    }
+
+    // Request notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+})();
+</script>
 {% endblock %}

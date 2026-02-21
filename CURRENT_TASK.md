@@ -1,84 +1,50 @@
 # CURRENT_TASK.md
 
-## F2.5: Multi-hookah Orders (Cart) — DONE ✅
+## F3.1: Admin Dashboard (Full Redesign) — DONE ✅
 
 ### What was done
 
-1. **Backend: Settings + DB constraint**
-   - Added settings: `total_hookahs=5`, `max_hookahs_regular=3`, `max_hookahs_event=5`
-   - Relaxed DB constraint `ck_orders_hookah_count` from `BETWEEN 1 AND 3` → `BETWEEN 1 AND 10`
-   - Updated model to match
+1. **Dashboard route** (`admin/routes/dashboard.py`)
+   - New blueprint with `GET /` route replacing old redirect
+   - Queries: today revenue + count, live orders, active sessions, available hookahs
+   - Kanban data: active orders grouped by status with mix names from order_items
+   - Charts: revenue last 7 days (with generate_series for zero-fill), top 5 mixes
+   - Alerts: overdue sessions, low-trust guests with active orders
 
-2. **Backend: GET /api/availability**
-   - Returns `{ available, max_per_order, total }`
-   - Available = total_hookahs - SUM(hookah_count) from active orders
-   - max_per_order = min(max_hookahs_regular, available)
+2. **Dashboard template** (`admin/templates/dashboard.html`)
+   - **5 widget cards**: Live Orders, Today Revenue, Orders Today, Active Sessions, Hookahs Available
+   - **Kanban board**: 6 columns (NEW → CONFIRMED → ON_THE_WAY → DELIVERED → SESSION_ACTIVE → WAITING_FOR_PICKUP)
+   - Kanban cards show: order ID, time ago, mix names, hookah count, phone, deposit type, trust flag
+   - **Quick action buttons** on each card (Confirm, Ship, Delivered, Start Session, Complete)
+   - Quick actions POST to existing `/orders/<id>/transition` endpoint
+   - **Revenue bar chart** (Chart.js, last 7 days) with orange theme
+   - **Top mixes doughnut chart** (Chart.js, all-time top 5)
+   - **Alerts section**: overdue sessions (red), low trust guests (yellow)
+   - **Auto-refresh**: 60-second countdown with page reload
+   - **New order notification**: beep sound (Web Audio API) + browser notification when order count increases
+   - Session timer display on kanban cards with overdue animation
+   - Dark theme matching existing admin panel
 
-3. **Backend: POST /api/orders — multi-item support**
-   - Accepts `items: [{mix_id, quantity}]` array
-   - Backward compatible: falls back to single `mix_id` if `items` absent
-   - Validates each mix (exists, active), checks total vs availability
-   - Sets `orders.hookah_count` = sum of quantities
-   - Sets `orders.mix_id` = first item's mix_id (backward compat)
-   - Inserts multiple hookah order_items
-   - Discount applies per-hookah: `(base - discount%) * quantity`
-
-4. **Frontend: CartContext** (new file)
-   - Provides: items, drinks, addItem, removeItem, clearCart, setDrinks, clearDrinks
-   - Fetches /api/availability on mount
-   - Tracks totalHookahs, totalPrice, maxHookahs, availableHookahs, soldOut
-
-5. **Frontend: FloatingCartBar** (new component)
-   - Fixed above bottom nav (bottom: 76px)
-   - Shows hookah count + price + "Next →"
-   - Orange gradient, white text
-
-6. **Frontend: MixCard** — [- qty +] counter
-   - quantity=0: "Add" button
-   - quantity>0: [- qty +] counter with orange border
-   - maxReached disables + button
-
-7. **Frontend: Catalog** — cart-aware
-   - Uses CartContext, shows FloatingCartBar
-   - Shows "All hookahs busy" when soldOut=true
-   - Shows "Maximum reached" hint
-
-8. **Frontend: DrinksQuestion, DrinksCatalog, Checkout** — all use CartContext
-   - No more location.state passing
-   - Checkout shows all hookah items with quantities
-   - Sends `items[]` payload to API
-   - Clears cart after success
-
-9. **Frontend: Orders** — multi-hookah display
-   - Active order shows all hookah items (not just primary mix)
-   - History shows all hookah items per order
-
-10. **Translations** — 5 new keys: cart_add, cart_next, cart_all_busy, cart_all_busy_sub, cart_max_reached
+3. **Wiring**
+   - `admin/app.py`: registered dashboard_bp, removed old redirect route
+   - `admin/templates/base.html`: added Dashboard as first sidebar link
+   - `admin/auth.py`: updated login redirect to `dashboard.index`
 
 ### Files created
-- `miniapp/src/contexts/CartContext.tsx`
-- `miniapp/src/components/FloatingCartBar.tsx`
+- `admin/routes/dashboard.py`
 
 ### Files modified
-- `backend/app.py` — availability endpoint + multi-item order creation
-- `backend/models.py` — relaxed hookah_count constraint
-- `backend/seed_settings.py` — 3 new settings
-- `miniapp/src/App.tsx` — wrapped with CartProvider
-- `miniapp/src/api/orders.ts` — getAvailability + updated payload
-- `miniapp/src/components/MixCard.tsx` — quantity counter
-- `miniapp/src/pages/Catalog.tsx` — cart integration
-- `miniapp/src/pages/Checkout.tsx` — multi-item checkout
-- `miniapp/src/pages/DrinksCatalog.tsx` — cart context
-- `miniapp/src/pages/DrinksQuestion.tsx` — cart context
-- `miniapp/src/pages/Orders.tsx` — multi-hookah display
-- `miniapp/src/utils/translations.ts` — cart keys
+- `admin/templates/dashboard.html` (full rewrite)
+- `admin/templates/base.html` (sidebar link + logo link)
+- `admin/app.py` (blueprint registration, removed old route)
+- `admin/auth.py` (login redirect)
 
 ### Verified
-- `npm run build` ✅ — no errors
-- Backend restarted ✅ — GET /api/availability returns correct data
-- Miniapp deployed to production ✅
+- Admin service restarted ✅ — health check 200
+- Dashboard renders with all sections ✅
+- All widget data queries execute correctly ✅
 - Git committed and pushed ✅
 
-## Статус: DONE
+## Status: DONE
 
-## Следующая задача: Фаза 3 — F3.1 Admin Dashboard (полный редизайн)
+## Next task: F3.2 — Settings Editor

@@ -46,6 +46,8 @@ from admin.routes.sessions import sessions_bp
 app.register_blueprint(sessions_bp)
 from admin.routes.menu import menu_bp
 app.register_blueprint(menu_bp)
+from admin.routes.dashboard import dashboard_bp
+app.register_blueprint(dashboard_bp)
 
 
 # --- Public routes ---
@@ -64,16 +66,6 @@ def health():
         "status": "ok" if db_status == "ok" else "degraded",
         "db": db_status
     })
-
-
-# --- Protected routes ---
-
-@app.route("/")
-@login_required
-def dashboard():
-    """Main dashboard — redirect to orders (main operational view)."""
-    from flask import redirect, url_for
-    return redirect(url_for('orders.orders_list'))
 
 
 if __name__ == "__main__":

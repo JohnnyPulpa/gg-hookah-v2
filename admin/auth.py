@@ -67,7 +67,7 @@ def login_page():
         if data and is_admin(data.get('tid', 0)):
             session.permanent = True
             session['admin_id'] = data['tid']
-            return redirect(url_for('dashboard'))
+            return redirect(url_for('dashboard.index'))
         else:
             return render_template('login.html', error='Invalid or expired link. Request a new one from the bot.'), 403
 
